@@ -1,0 +1,15 @@
+[Unit]
+Description=Hurmuz AIS toplayici (aisstream.io -> Neon Postgres)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/hurmuz-trafik/collector
+EnvironmentFile=/etc/hurmuz.env
+ExecStart=/usr/bin/node index.js
+Restart=always
+RestartSec=5
+User=ubuntu
+
+[Install]
+WantedBy=multi-user.target

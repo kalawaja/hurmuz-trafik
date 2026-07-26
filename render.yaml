@@ -1,0 +1,17 @@
+# B PLANI — Render ucretsiz katman (Blueprint)
+# Not: Ucretsiz servisler 15 dk hareketsizlikte uyur; UptimeRobot ile
+# 5 dakikada bir https://<servis>.onrender.com/ adresine ping atarak uyanik tutun.
+services:
+  - type: web
+    name: hurmuz-collector
+    runtime: node
+    plan: free
+    rootDir: collector
+    buildCommand: npm install
+    startCommand: node index.js
+    healthCheckPath: /
+    envVars:
+      - key: AISSTREAM_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false

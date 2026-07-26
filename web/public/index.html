@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hürmüz Boğazı · Canlı Tanker Trafiği</title>
+<meta property="og:title" content="Hürmüz Boğazı — Canlı Tanker Trafiği">
+<meta property="og:description" content="Son 24 saatin AIS izleri, hızlandırılmış tekrar ve geçiş istatistikleri. 7/24.">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root{
+    --paper:#EFE9D6; --paper-2:#E8E0C8; --panel:#ECE5CF;
+    --ink:#33301F; --ink-soft:#6F674A; --ink-faint:#98906E;
+    --rule:#4A4430;
+    --land:#E6D392; --land-edge:#9C8A4C;
+    --shallow:#BFD9DE; --water:#F4F1E1;
+    --magenta:#B03187;
+    --crude:#B0541C; --prod:#20707A;
+    --alert:#A63A2E; --live:#3E6B3A;
+    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    --serif:Georgia,"Times New Roman",serif;
+    --sans:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);display:flex;flex-direction:column;min-height:100vh}
+
+  header{padding:14px 18px 10px;border-bottom:3px double var(--rule);
+    display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .mast-left .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-soft);text-transform:uppercase;margin-bottom:4px}
+  .mast-left h1{font-family:var(--serif);font-weight:400;font-size:clamp(19px,3.4vw,27px);letter-spacing:.08em;text-transform:uppercase}
+  .mast-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .chip{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+    border:1px solid var(--rule);padding:5px 9px;color:var(--ink);display:inline-flex;align-items:center;gap:7px;background:var(--paper-2)}
+  .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--live);animation:pulse 1.6s infinite}
+  #clock{font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--ink-soft)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+  main{flex:1;display:flex;gap:0;align-items:stretch;min-height:0}
+  #mapwrap{flex:1 1 620px;position:relative;padding:14px;min-width:320px;min-height:380px}
+  #stage{position:relative;width:100%;height:100%;min-height:360px}
+  canvas#map{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:24px}
+  #empty div{max-width:420px;font-size:13px;line-height:1.6;color:var(--ink-soft);
+    border:1px dashed var(--ink-faint);background:var(--paper);padding:16px 18px}
+
+  aside{flex:0 0 300px;border-left:1px solid var(--rule);background:var(--panel);
+    padding:16px 16px 12px;display:flex;flex-direction:column;gap:14px;overflow-y:auto}
+  .blk{border:1px solid var(--rule);background:var(--paper);padding:10px 12px 12px}
+  .blk h2{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);
+    border-bottom:1px solid var(--rule);padding-bottom:6px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:baseline}
+  .blk h2 small{letter-spacing:.05em;color:var(--ink-faint);font-size:9px}
+  .big{font-family:var(--mono);font-size:34px;line-height:1;letter-spacing:-.01em}
+  .big small{font-size:11px;letter-spacing:.12em;color:var(--ink-soft);margin-left:6px}
+  .duo{display:flex;margin-top:10px;border-top:1px dashed var(--ink-faint);padding-top:8px}
+  .duo>div{flex:1}
+  .duo>div+div{border-left:1px dashed var(--ink-faint);padding-left:12px}
+  .lbl{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:3px}
+  .val{font-family:var(--mono);font-size:19px}
+  .row{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .row .k{display:flex;align-items:center;gap:7px;font-size:12px;flex:0 0 118px}
+  .swatch{width:14px;height:8px;flex:none}
+  .bar{flex:1;height:8px;background:var(--paper-2);position:relative;border:1px solid #d8d0b4}
+  .bar i{position:absolute;inset:0 auto 0 0;background:var(--ink-soft)}
+  .row .n{font-family:var(--mono);font-size:12px;width:26px;text-align:right}
+  #hourly{width:100%;height:64px;display:block;margin-top:4px}
+  .footnote{font-size:10.5px;line-height:1.5;color:var(--ink-soft)}
+  .footnote b{color:var(--ink)}
+  .footnote a{color:var(--ink);text-decoration:underline dotted}
+  .ref{border-top:1px dashed var(--ink-faint);margin-top:9px;padding-top:7px;font-family:var(--mono);
+    font-size:10px;letter-spacing:.04em;color:var(--ink-soft);display:flex;justify-content:space-between}
+
+  footer{border-top:3px double var(--rule);padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--paper-2)}
+  .ctl{display:flex;align-items:center;gap:8px}
+  .ctl .lbl{margin:0}
+  button{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    background:var(--paper);color:var(--ink);border:1px solid var(--rule);padding:7px 12px;cursor:pointer}
+  button:hover{background:#fff8e6}
+  button:focus-visible{outline:2px solid var(--magenta);outline-offset:2px}
+  button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  button.rec.on{background:var(--alert);border-color:var(--alert);color:#fff}
+  .seg{display:flex}
+  .seg button+button{border-left:none}
+  footer .note{font-size:10.5px;color:var(--ink-soft);margin-left:auto;max-width:340px;line-height:1.4}
+
+  @media (max-width:820px){
+    main{flex-direction:column}
+    aside{flex:1 1 auto;border-left:none;border-top:1px solid var(--rule)}
+    #mapwrap{min-height:62vh}
+    footer .note{max-width:none;margin-left:0}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="mast-left">
+    <div class="eyebrow">Gözlem İstasyonu · 7/24</div>
+    <h1>Hürmüz Boğazı Tanker Trafiği</h1>
+  </div>
+  <div class="mast-right">
+    <span class="chip"><span class="dot"></span>Canlı · AIS</span>
+    <span class="chip" id="lag">gecikme —</span>
+    <span id="clock">--:--</span>
+  </div>
+</header>
+
+<main>
+  <div id="mapwrap">
+    <div id="stage">
+      <canvas id="map"></canvas>
+      <div id="empty"><div id="emptyMsg">Veri bekleniyor…</div></div>
+    </div>
+  </div>
+
+  <aside>
+    <div class="blk">
+      <h2>Son 24 Saat · Geçiş <small>sayım hattı 56°36′D</small></h2>
+      <div class="big" id="tTotal">0<small>TANKER</small></div>
+      <div class="duo">
+        <div><div class="lbl">Körfez'e giriş ◀</div><div class="val" id="tIn">0</div></div>
+        <div><div class="lbl">▶ Körfez'den çıkış</div><div class="val" id="tOut">0</div></div>
+      </div>
+    </div>
+
+    <div class="blk">
+      <h2>Filo Dağılımı <small>son 24 sa</small></h2>
+      <div class="row"><div class="k"><span class="swatch" style="background:var(--crude)"></span>VLCC · ham</div><div class="bar"><i id="bVLCC"></i></div><div class="n" id="nVLCC">0</div></div>
+      <div class="row"><div class="k"><span class="swatch" style="background:var(--crude);opacity:.75"></span>Suezmax · ham</div><div class="bar"><i id="bSUEZ"></i></div><div class="n" id="nSUEZ">0</div></div>
+      <div class="row"><div class="k"><span class="swatch" style="background:var(--crude);opacity:.5"></span>Aframax · ham</div><div class="bar"><i id="bAFRA"></i></div><div class="n" id="nAFRA">0</div></div>
+      <div class="row"><div class="k"><span class="swatch" style="background:var(--prod)"></span>Ürün tankeri</div><div class="bar"><i id="bPROD"></i></div><div class="n" id="nPROD">0</div></div>
+      <div class="ref"><span>Haritada izlenen</span><span id="active">0</span></div>
+    </div>
+
+    <div class="blk">
+      <h2>Saatlik Geçiş <small>son 24 sa</small></h2>
+      <canvas id="hourly"></canvas>
+      <div class="ref"><span>Tahmini hacim</span><span id="vol">0,0 mn varil</span></div>
+      <div class="ref" style="border-top:none;margin-top:2px;padding-top:0"><span>Referans · IEA 2025 ort.</span><span>~20 mn varil/gün</span></div>
+    </div>
+
+    <div class="footnote">
+      Konumlar <b>AIS</b> yayınlarından derlenir (veri: <a href="https://aisstream.io" rel="noopener">aisstream.io</a>).
+      AIS tabanlı sayımlar her koşulda <b>alt sınırdır</b>: transponderini kapatan veya sahte konum yayınlayan
+      gemiler burada görünmez. Hacim, sınıf başına ortalama yük varsayımıyla tahmindir.
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <div class="ctl"><button id="play" class="on" aria-label="Oynat / Duraklat">❚❚ Duraklat</button></div>
+  <div class="ctl"><span class="lbl">Hız</span>
+    <span class="seg">
+      <button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button data-sp="4">4×</button>
+    </span>
+  </div>
+  <div class="ctl"><button id="rec" class="rec">● Kaydet</button></div>
+  <div class="note">Son 24 saat hızlandırılmış olarak döner, sona gelince birkaç saniye canlı konumda bekler ve başa sarar. Kaydet düğmesi haritayı WebM video olarak indirir — tweete video + link birlikte eklemek için.</div>
+</footer>
+
+<script>
+"use strict";
+/* ============================================================
+   HÜRMÜZ BOĞAZI — CANLI TANKER TRAFİĞİ (gerçek AIS verisi)
+   /api/replay → son 24 saatin izleri (5 dk kovalar)
+   /api/stats  → geçiş istatistikleri
+   ============================================================ */
+
+/* ---------- projeksiyon ---------- */
+const LON0=54.55, LON1=58.25, LAT0=24.55, LAT1=27.95;
+const KLON=Math.cos(26.2*Math.PI/180);
+const AR=((LON1-LON0)*KLON)/(LAT1-LAT0);
+let W=800,H=800,OX=0,OY=0,DPR=1;
+const PX = lon => OX + (lon-LON0)/(LON1-LON0)*W;
+const PY = lat => OY + (LAT1-lat)/(LAT1-LAT0)*H;
+
+/* ---------- coğrafya (stilize) ---------- */
+const IRAN=[[54.55,26.62],[54.9,26.62],[55.25,26.72],[55.55,26.86],[55.8,26.98],[56.0,27.06],
+[56.15,27.13],[56.27,27.16],[56.38,27.12],[56.52,27.07],[56.68,27.02],[56.85,26.92],[57.0,26.8],
+[57.12,26.68],[57.22,26.58],[57.35,26.42],[57.5,26.22],[57.62,26.05],[57.72,25.9],[57.8,25.78],
+[57.95,25.68],[58.1,25.62],[58.25,25.6],[58.25,27.95],[54.55,27.95]];
+const SOUTH=[[54.55,24.9],[54.8,24.95],[55.05,25.05],[55.3,25.28],[55.5,25.42],[55.72,25.58],
+[55.9,25.72],[56.0,25.85],[56.04,26.0],[56.08,26.12],[56.16,26.24],[56.26,26.33],[56.36,26.4],
+[56.44,26.42],[56.5,26.36],[56.52,26.24],[56.48,26.1],[56.42,25.95],[56.36,25.78],[56.3,25.62],
+[56.32,25.45],[56.38,25.28],[56.42,25.1],[56.44,24.9],[56.46,24.7],[56.48,24.55],[54.55,24.55]];
+const QESHM=[[55.28,26.55],[55.5,26.6],[55.75,26.68],[55.95,26.76],[56.12,26.85],[56.24,26.92],
+[56.3,26.97],[56.26,27.0],[56.1,26.97],[55.9,26.9],[55.68,26.8],[55.45,26.7],[55.3,26.62]];
+const ISLES=[[56.46,27.05,5],[56.35,26.85,4],[55.89,26.62,3.5],[56.52,26.46,2],
+[55.03,25.88,3],[55.31,26.27,2.5],[55.14,26.24,2]];
+const SOUNDINGS=[[54.8,26.2,62],[55.1,25.7,54],[55.4,26.0,48],[55.0,26.45,71],[55.7,26.2,58],
+[55.9,25.5,44],[56.2,26.6,84],[56.45,26.62,110],[56.6,26.55,182],[56.7,26.7,96],
+[56.8,26.3,146],[56.95,26.0,205],[57.1,25.6,320],[57.4,25.9,610],[57.6,25.3,880],
+[57.9,25.5,1240],[57.2,25.2,540],[56.7,25.0,150],[56.9,24.8,330],[55.5,25.1,38],
+[54.75,25.35,45],[57.85,26.2,410],[58.0,24.9,1900],[56.05,26.68,52],[55.65,26.55,64]];
+const GATE={lon:56.60, lat0:26.28, lat1:26.80};
+
+/* ---------- veri durumu ---------- */
+let T0=0, T1=0, tau=0;               // pencere ve tekrar saati (epoch sn)
+let tracks=new Map();                // mmsi -> [[t,lon,lat],...]
+let vmeta={};                        // mmsi -> {n,ty,len}
+let transits=[];                     // [[t,dir,lat],...]
+let trIdx=0, pings=[];
+let haveData=false, playing=true, speed=1, liveHoldUntil=0;
+const BASE_DUR=36;                   // 24 saat ≈ 36 sn (1× hızda)
+const HOLD=5;                        // canlıda bekleme (sn)
+
+/* ---------- yardımcılar ---------- */
+function posAt(pts,t){
+  const n=pts.length; if(!n) return null;
+  if(t < pts[0][0]-900 || t > pts[n-1][0]+1200) return null;
+  if(t <= pts[0][0])  return mk(pts,0,0,0);
+  if(t >= pts[n-1][0]) return mk(pts,Math.max(0,n-2),1, t-pts[n-1][0]);
+  let lo=0, hi=n-1;
+  while(lo<hi-1){const m=(lo+hi)>>1; if(pts[m][0]<=t) lo=m; else hi=m;}
+  const gap=pts[hi][0]-pts[lo][0];
+  if(gap>3600) return mk(pts,lo,0,gap);                 // uzun sessizlik → son bilinen
+  const f=(t-pts[lo][0])/(gap||1);
+  return mk(pts,lo,f,0);
+  function mk(p,i,f,staleGap){
+    const a=p[i], b=p[Math.min(p.length-1,i+1)];
+    const lon=a[1]+(b[1]-a[1])*f, lat=a[2]+(b[2]-a[2])*f;
+    let hd=Math.atan2(-(b[2]-a[2]),(b[1]-a[1])*KLON);
+    if(a===b || (a[1]===b[1]&&a[2]===b[2])) hd=0;
+    return {lon,lat,hd,stale:staleGap>3600};
+  }
+}
+function dispOver(pts,t,backSec){
+  const a=posAt(pts,t-backSec), b=posAt(pts,t);
+  if(!a||!b) return 1;
+  return Math.hypot((b.lon-a.lon)*KLON,(b.lat-a.lat));
+}
+function shipStyle(m){
+  const len=(m&&m.len)||0;
+  if(len>=270) return {c:"crude",a:1,sc:1};
+  if(len>=230) return {c:"crude",a:.8,sc:.85};
+  if(len>=180) return {c:"crude",a:.62,sc:.72};
+  if(len>0)    return {c:"prod", a:.95,sc:.55};
+  return {c:"crude",a:.55,sc:.7};
+}
+
+/* ---------- veri çekme ---------- */
+async function loadReplay(){
+  try{
+    const r=await fetch("/api/replay?hours=24",{cache:"no-store"});
+    if(!r.ok) throw 0;
+    const d=await r.json();
+    const prog = (T1>T0)? (tau-T0)/(T1-T0) : 0;
+    T0=d.t0; T1=d.t1;
+    tracks=new Map(Object.entries(d.tracks).map(([k,v])=>[k,v]));
+    vmeta=d.vessels||{};
+    transits=d.transits||[];
+    tau=T0+Math.min(0.999,Math.max(0,prog))*(T1-T0);
+    trIdx=transits.findIndex(x=>x[0]>tau); if(trIdx<0) trIdx=transits.length;
+    haveData=tracks.size>0;
+    document.getElementById("empty").style.display=haveData?"none":"flex";
+    if(!haveData) document.getElementById("emptyMsg").textContent=
+      "Veri bekleniyor — toplayıcı ilk konumları yazdığında harita kendiliğinden canlanacak.";
+  }catch(e){
+    if(!haveData){
+      document.getElementById("empty").style.display="flex";
+      document.getElementById("emptyMsg").textContent=
+        "API'ye ulaşılamadı. Site Vercel üzerinde yayındayken bu sayfa /api/replay ucundan beslenir "+
+        "(yerel geliştirme için: vercel dev).";
+    }
+  }
+}
+async function loadStats(){
+  try{
+    const r=await fetch("/api/stats",{cache:"no-store"});
+    if(!r.ok) throw 0;
+    const s=await r.json();
+    fillPanel(s);
+  }catch(e){/* sessiz geç */}
+}
+
+/* ---------- panel ---------- */
+const $=id=>document.getElementById(id);
+const hc=$("hourly"), hctx=hc.getContext("2d");
+function fillPanel(s){
+  $("tTotal").firstChild.nodeValue=(s.total||0).toLocaleString("tr-TR");
+  $("tIn").textContent=s.inb||0; $("tOut").textContent=s.outb||0;
+  const by=s.byClass||{}, mx=Math.max(1,by.VLCC||0,by.SUEZ||0,by.AFRA||0,by.PROD||0);
+  ["VLCC","SUEZ","AFRA","PROD"].forEach(k=>{
+    $("n"+k).textContent=by[k]||0;
+    $("b"+k).style.width=((by[k]||0)/mx*100)+"%";
+  });
+  $("active").textContent=s.active||0;
+  $("vol").textContent=((s.kbbl||0)/1000).toLocaleString("tr-TR",{minimumFractionDigits:1,maximumFractionDigits:1})+" mn varil";
+  const lag = s.lastMsg? (s.now - s.lastMsg) : null;
+  $("lag").textContent = lag===null? "gecikme —" :
+    lag<90? "gecikme "+lag+" sn" : "gecikme "+Math.round(lag/60)+" dk";
+  // saatlik grafik
+  const wpx=hc.getBoundingClientRect().width;
+  hctx.clearRect(0,0,wpx,64);
+  const hs=s.hourly||new Array(24).fill(0), bm=Math.max(2,...hs), bw=wpx/24;
+  hctx.fillStyle="rgba(51,48,31,.14)"; hctx.fillRect(0,56,wpx,1);
+  hs.forEach((v,i)=>{
+    const h=v/bm*48;
+    hctx.fillStyle=i===23?"#B03187":"rgba(51,48,31,.55)";
+    hctx.fillRect(i*bw+1.5,56-h,bw-3,h);
+  });
+  hctx.fillStyle="rgba(51,48,31,.55)"; hctx.font="8px "+MONO;
+  hctx.textAlign="left"; hctx.fillText("-24 sa",1,63);
+  hctx.textAlign="right"; hctx.fillText("şimdi",wpx-1,63);
+}
+
+/* ---------- çizim ---------- */
+const cv=$("map"), ctx=cv.getContext("2d");
+const MONO=getComputedStyle(document.body).getPropertyValue("--mono");
+const SERIF=getComputedStyle(document.body).getPropertyValue("--serif");
+const CSSV=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function resize(){
+  const st=$("stage"), r=st.getBoundingClientRect();
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  cv.width=r.width*DPR; cv.height=r.height*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  const m=34;
+  let w=r.width-m*2, h=r.height-m*2;
+  if(w/h>AR) w=h*AR; else h=w/AR;
+  W=w; H=h; OX=(r.width-w)/2; OY=(r.height-h)/2;
+  const hr=hc.getBoundingClientRect();
+  hc.width=hr.width*DPR; hc.height=64*DPR; hctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener("resize",resize);
+
+function poly(pts){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(PX(p[0]),PY(p[1])):ctx.moveTo(PX(p[0]),PY(p[1])));ctx.closePath();}
+
+function drawLand(){
+  const LAND=CSSV("--land"), EDGE=CSSV("--land-edge"), SHAL=CSSV("--shallow");
+  [IRAN,SOUTH,QESHM].forEach(P=>{poly(P);ctx.strokeStyle=SHAL;ctx.lineWidth=13;ctx.lineJoin="round";ctx.stroke();});
+  ISLES.forEach(([lo,la,r])=>{ctx.beginPath();ctx.arc(PX(lo),PY(la),r+5,0,7);ctx.strokeStyle=SHAL;ctx.lineWidth=6;ctx.stroke();});
+  [IRAN,SOUTH,QESHM].forEach(P=>{poly(P);ctx.fillStyle=LAND;ctx.fill();ctx.strokeStyle=EDGE;ctx.lineWidth=1.2;ctx.stroke();});
+  ISLES.forEach(([lo,la,r])=>{ctx.beginPath();ctx.arc(PX(lo),PY(la),r,0,7);ctx.fillStyle=LAND;ctx.fill();ctx.strokeStyle=EDGE;ctx.stroke();});
+}
+function drawSoundings(){
+  ctx.fillStyle="rgba(51,48,31,.34)"; ctx.font="9px "+MONO; ctx.textAlign="center";
+  SOUNDINGS.forEach(([lo,la,d])=>ctx.fillText(d,PX(lo),PY(la)));
+}
+function drawGate(){
+  const x=PX(GATE.lon), y0=PY(GATE.lat0), y1=PY(GATE.lat1);
+  ctx.setLineDash([2,4]); ctx.strokeStyle="rgba(51,48,31,.7)"; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y1); ctx.stroke(); ctx.setLineDash([]);
+  ctx.save(); ctx.translate(x,y1+4); ctx.rotate(Math.PI/2);
+  ctx.fillStyle="rgba(51,48,31,.75)"; ctx.font="9px "+MONO; ctx.textAlign="left";
+  ctx.fillText("SAYIM HATTI 56°36′D",4,3); ctx.restore();
+}
+function label(t,lon,lat,opt={}){
+  ctx.save(); ctx.translate(PX(lon),PY(lat));
+  if(opt.rot) ctx.rotate(opt.rot);
+  ctx.fillStyle=opt.c||"rgba(51,48,31,.85)";
+  ctx.font=opt.f||("10px "+MONO);
+  ctx.textAlign=opt.a||"center";
+  if(opt.sp){
+    const chs=[...t];
+    let x=-(chs.reduce((s,c)=>s+ctx.measureText(c).width+opt.sp,0)-opt.sp)/2;
+    chs.forEach(c=>{ctx.fillText(c,x+ctx.measureText(c).width/2,0);x+=ctx.measureText(c).width+opt.sp;});
+  } else ctx.fillText(t,0,0);
+  ctx.restore();
+}
+function drawLabels(){
+  label("İ R A N",56.75,27.55,{f:"12px "+MONO,sp:6,c:"rgba(51,48,31,.6)"});
+  label("B.A.E.",55.15,24.78,{f:"10px "+MONO,sp:4,c:"rgba(51,48,31,.55)"});
+  label("UMMAN",56.4,25.55,{f:"9px "+MONO,sp:3,c:"rgba(51,48,31,.55)",rot:-1.25});
+  label("BASRA KÖRFEZİ",54.95,25.98,{f:"italic 13px "+SERIF,sp:2.5,c:"rgba(32,60,80,.55)"});
+  label("UMMAN KÖRFEZİ",57.55,24.78,{f:"italic 13px "+SERIF,sp:2.5,c:"rgba(32,60,80,.55)"});
+  label("Keşm",55.8,26.86,{f:"italic 10px "+SERIF,c:"rgba(51,48,31,.6)"});
+  [[56.27,27.16,"Bender Abbas"],[56.36,25.12,"Fuceyra"]].forEach(([lo,la,t])=>{
+    ctx.beginPath();ctx.arc(PX(lo),PY(la),2.3,0,7);ctx.fillStyle="rgba(51,48,31,.8)";ctx.fill();
+    label(t,lo+0.06,la+0.07,{a:"left",f:"9.5px "+MONO,c:"rgba(51,48,31,.7)"});
+  });
+}
+function drawNeatline(){
+  ctx.strokeStyle="rgba(51,48,31,.9)";
+  ctx.lineWidth=1.4; ctx.strokeRect(OX-8,OY-8,W+16,H+16);
+  ctx.lineWidth=0.7; ctx.strokeRect(OX-3,OY-3,W+6,H+6);
+  ctx.fillStyle="rgba(51,48,31,.75)"; ctx.font="9px "+MONO;
+  for(let lon=55;lon<=58;lon++){
+    const x=PX(lon);
+    ctx.beginPath();ctx.moveTo(x,OY-8);ctx.lineTo(x,OY-3);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x,OY+H+3);ctx.lineTo(x,OY+H+8);ctx.stroke();
+    ctx.textAlign="center"; ctx.fillText(lon+"°D",x,OY-12);
+  }
+  for(let lat=25;lat<=27;lat++){
+    const y=PY(lat);
+    ctx.beginPath();ctx.moveTo(OX-8,y);ctx.lineTo(OX-3,y);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(OX+W+3,y);ctx.lineTo(OX+W+8,y);ctx.stroke();
+    ctx.textAlign="left"; ctx.fillText(lat+"°K",OX+W+11,y+3);
+  }
+  const nm=H/((LAT1-LAT0)*60), x0=OX+14, y=OY+H-16;
+  ctx.strokeStyle="rgba(51,48,31,.85)"; ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x0+25*nm,y);ctx.stroke();
+  [0,12.5,25].forEach(v=>{ctx.beginPath();ctx.moveTo(x0+v*nm,y-3);ctx.lineTo(x0+v*nm,y+3);ctx.stroke();});
+  ctx.textAlign="left"; ctx.fillText("0",x0-2,y+13); ctx.fillText("25 nm",x0+25*nm-8,y+13);
+}
+function drawCompass(){
+  const x=PX(54.86),y=PY(25.55),r=24;
+  ctx.save(); ctx.translate(x,y); ctx.strokeStyle="rgba(51,48,31,.5)"; ctx.fillStyle="rgba(51,48,31,.6)";
+  ctx.lineWidth=0.8; ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.stroke();
+  for(let a=0;a<360;a+=30){const t=a*Math.PI/180;
+    ctx.beginPath();ctx.moveTo(Math.sin(t)*(r-3),-Math.cos(t)*(r-3));ctx.lineTo(Math.sin(t)*r,-Math.cos(t)*r);ctx.stroke();}
+  ctx.beginPath();ctx.moveTo(0,-r+5);ctx.lineTo(3.5,2);ctx.lineTo(-3.5,2);ctx.closePath();ctx.fill();
+  ctx.font="8px "+MONO;ctx.textAlign="center";ctx.fillText("K",0,-r-4);
+  ctx.restore();
+}
+
+function drawVessels(){
+  const CR=CSSV("--crude"), PR=CSSV("--prod");
+  tracks.forEach((pts,mmsi)=>{
+    const p=posAt(pts,tau);
+    if(!p) return;
+    const st=shipStyle(vmeta[mmsi]);
+    const col=st.c==="crude"?CR:PR;
+    // iz: [tau-2.5sa, tau]
+    ctx.lineCap="round";
+    let prev=null;
+    for(let i=0;i<pts.length;i++){
+      const q=pts[i];
+      if(q[0]<tau-9000) continue;
+      if(q[0]>tau) break;
+      if(prev && (q[0]-prev[0])<=3600){
+        const age=(tau-q[0])/9000;
+        ctx.beginPath();ctx.moveTo(PX(prev[1]),PY(prev[2]));ctx.lineTo(PX(q[1]),PY(q[2]));
+        ctx.strokeStyle=col; ctx.globalAlpha=Math.max(0.04,0.34*(1-age))*st.a; ctx.lineWidth=2.2; ctx.stroke();
+      }
+      prev=q;
+    }
+    if(prev){
+      ctx.beginPath();ctx.moveTo(PX(prev[1]),PY(prev[2]));ctx.lineTo(PX(p.lon),PY(p.lat));
+      ctx.strokeStyle=col; ctx.globalAlpha=0.34*st.a; ctx.lineWidth=2.2; ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+    // demirli mi?
+    const moving=dispOver(pts,tau,2700)>0.006;
+    ctx.save(); ctx.translate(PX(p.lon),PY(p.lat)); ctx.rotate(p.hd);
+    if(!moving){
+      ctx.fillStyle=col; ctx.globalAlpha=0.5*st.a;
+      ctx.fillRect(-2.6,-1.3,5.2,2.6);
+    }else{
+      const sc=st.sc;
+      ctx.beginPath();
+      ctx.moveTo(7*sc+4,0); ctx.lineTo(3*sc,3.1*sc+0.8); ctx.lineTo(-7*sc,3.1*sc+0.8);
+      ctx.lineTo(-7*sc,-3.1*sc-0.8); ctx.lineTo(3*sc,-3.1*sc-0.8); ctx.closePath();
+      if(p.stale){ ctx.strokeStyle=col; ctx.globalAlpha=0.8*st.a; ctx.lineWidth=1.1; ctx.stroke(); }
+      else{
+        ctx.fillStyle=col; ctx.globalAlpha=st.a; ctx.fill();
+        ctx.strokeStyle="rgba(51,48,31,.55)"; ctx.lineWidth=0.7; ctx.stroke();
+      }
+    }
+    ctx.restore(); ctx.globalAlpha=1;
+  });
+  // geçiş halkaları (gerçek zaman ~0.9 sn)
+  const nowMs=performance.now();
+  pings=pings.filter(g=>nowMs-g.born<900);
+  pings.forEach(g=>{
+    const age=(nowMs-g.born)/900;
+    ctx.beginPath(); ctx.arc(g.x,g.y,4+age*34,0,7);
+    ctx.strokeStyle="rgba(176,49,135,"+(0.7*(1-age))+")"; ctx.lineWidth=1.6; ctx.stroke();
+  });
+}
+
+function drawFrame(){
+  const r=cv.getBoundingClientRect();
+  ctx.clearRect(0,0,r.width,r.height);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(OX-3,OY-3,W+6,H+6); ctx.clip();
+  ctx.fillStyle=CSSV("--water");
+  ctx.fillRect(OX-3,OY-3,W+6,H+6);
+  drawSoundings(); drawLand(); drawGate(); drawCompass(); drawLabels();
+  drawVessels();
+  ctx.restore();
+  drawNeatline();
+}
+
+/* ---------- saat ---------- */
+const AYLAR=["Oca","Şub","Mar","Nis","May","Haz","Tem","Ağu","Eyl","Eki","Kas","Ara"];
+function updateClock(){
+  if(!haveData){$("clock").textContent="--:--";return;}
+  if(performance.now()<liveHoldUntil || tau>=T1-30){
+    $("clock").textContent="CANLI";
+  }else{
+    const d=new Date(tau*1000);
+    $("clock").textContent=
+      d.getUTCDate()+" "+AYLAR[d.getUTCMonth()]+" "+
+      String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0")+" UTC";
+  }
+}
+
+/* ---------- döngü ---------- */
+let lastTs=null, acc=0;
+function loop(ts){
+  requestAnimationFrame(loop);
+  if(lastTs===null)lastTs=ts;
+  const dt=Math.min(0.1,(ts-lastTs)/1000); lastTs=ts;
+  if(haveData && playing && performance.now()>=liveHoldUntil){
+    const rate=(T1-T0)/BASE_DUR*speed;    // sn(veri)/sn(gerçek)
+    tau+=dt*rate;
+    while(trIdx<transits.length && transits[trIdx][0]<=tau){
+      const tr=transits[trIdx++];
+      pings.push({x:PX(GATE.lon), y:PY(tr[2]||26.5), born:performance.now()});
+    }
+    if(tau>=T1){
+      tau=T1; liveHoldUntil=performance.now()+HOLD*1000;
+      setTimeout(()=>{ if(playing){ tau=T0; trIdx=transits.findIndex(x=>x[0]>tau); if(trIdx<0)trIdx=transits.length; } }, HOLD*1000);
+    }
+  }
+  drawFrame();
+  acc+=dt;
+  if(acc>0.25){acc=0; updateClock();}
+}
+
+/* ---------- kontroller ---------- */
+$("play").addEventListener("click",()=>{
+  playing=!playing;
+  $("play").textContent=playing?"❚❚ Duraklat":"▶ Oynat";
+  $("play").classList.toggle("on",playing);
+});
+document.querySelectorAll("[data-sp]").forEach(b=>b.addEventListener("click",()=>{
+  speed=+b.dataset.sp;
+  document.querySelectorAll("[data-sp]").forEach(x=>x.classList.toggle("on",x===b));
+}));
+
+/* ---------- kayıt (WebM) ---------- */
+let recorder=null, chunks=[];
+$("rec").addEventListener("click",()=>{
+  const btn=$("rec");
+  if(recorder){recorder.stop(); return;}
+  try{
+    const stream=cv.captureStream(30);
+    const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp9")?"video/webm;codecs=vp9":"video/webm";
+    recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6e6});
+    chunks=[];
+    recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+    recorder.onstop=()=>{
+      const blob=new Blob(chunks,{type:"video/webm"});
+      const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob); a.download="hurmuz-tanker-trafigi.webm"; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      recorder=null; btn.textContent="● Kaydet"; btn.classList.remove("on");
+    };
+    recorder.start();
+    btn.textContent="■ Durdur & indir"; btn.classList.add("on");
+  }catch(err){
+    btn.textContent="Kayıt desteklenmiyor";
+    setTimeout(()=>{btn.textContent="● Kaydet";},2500);
+    recorder=null;
+  }
+});
+
+/* ---------- başlat ---------- */
+resize();
+if(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+  playing=false; $("play").textContent="▶ Oynat"; $("play").classList.remove("on");
+}
+loadReplay().then(()=>{ if(haveData){ tau=T0; } });
+loadStats();
+setInterval(loadReplay, 240000);
+setInterval(loadStats,   60000);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
