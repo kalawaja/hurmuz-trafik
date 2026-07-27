@@ -1,7 +1,10 @@
 /* ============================================================
-   HÜRMÜZ TOPLAYICI — aisstream.io → Postgres (Neon)
-   7/24 çalışır: tanker konumlarını örnekleyerek kaydeder,
-   sayım hattı (56°36'D) geçişlerini transits tablosuna işler.
+   HÜRMÜZ TOPLAYICI v2 — aisstream.io + IMF PortWatch → Postgres
+   v2 yenilikleri:
+   - Resmî günlük geçiş serisi (IMF PortWatch, straits.live ücretsiz
+     API'si üzerinden; 12 saatte bir tazelenir, veritabanında saklanır)
+   - Ölü bölge dayanıklı geçiş tespiti: sayım hattına ek olarak
+     "körfez yakasında görüldü → okyanus yakasında görüldü" çıkarımı
    Gerekli ortam değişkenleri: AISSTREAM_KEY, DATABASE_URL
    ============================================================ */
 import WebSocket from "ws";
@@ -16,13 +19,18 @@ if (!KEY || !DB) {
 }
 
 /* ---- yapılandırma ---- */
-const BOX = [[[24.4, 54.3], [28.0, 58.6]]];      // [ [ [güney,batı], [kuzey,doğu] ] ]
-const GATE_LON = 56.60;                            // sayım hattı boylamı
-const GATE_LAT_MIN = 26.25, GATE_LAT_MAX = 26.85;  // hattın enlem aralığı
-const SAMPLE_SEC   = 120;    // gemi başına en az bu kadar sn'de bir konum yaz
-const SAMPLE_DEG   = 0.01;   // ...veya bu kadar derece yer değiştirmişse
-const PRUNE_HOURS  = 72;     // konum geçmişi saklama süresi
-const TRANSIT_GAP  = 2 * 3600 * 1000; // aynı gemi için iki geçiş arası en az (ms)
+const BOX = [[[24.4, 54.3], [28.0, 58.6]]];
+const GATE_LON = 56.60;
+const GATE_LAT_MIN = 26.25, GATE_LAT_MAX = 26.85;
+const SIDE_WEST_LON = 56.20;   // bunun batısı: Basra Körfezi yakası
+const SIDE_EAST_LON = 57.00;   // bunun doğusu: Umman Körfezi yakası
+const SIDE_MAX_GAP  = 48 * 3600;
+const SAMPLE_SEC   = 120;
+const SAMPLE_DEG   = 0.01;
+const PRUNE_HOURS  = 72;
+const TRANSIT_GAP  = 2 * 3600 * 1000;
+const DAILY_URL    = "https://straits.live/api/v1/transits?history=1&limit=365";
+const DAILY_EVERY  = 12 * 3600 * 1000;
 const isTanker = t => Number.isInteger(t) && t >= 80 && t <= 89;
 
 const pool = new pg.Pool({
@@ -32,11 +40,13 @@ const pool = new pg.Pool({
 });
 
 /* ---- durum ---- */
-const meta       = new Map();  // mmsi -> {type,name,len}
-const lastPos    = new Map();  // mmsi -> {lon,lat,t}   (kapı kontrolü için)
-const lastStored = new Map();  // mmsi -> {lon,lat,t}   (örnekleme için)
-const lastCross  = new Map();  // mmsi -> ms            (çift sayım koruması)
+const meta       = new Map();
+const lastPos    = new Map();
+const lastStored = new Map();
+const lastCross  = new Map();
+const sideSeen   = new Map();  // mmsi -> {side:'G'|'O', t}
 let lastMsgAt = 0, msgCount = 0, posWritten = 0, transitCount = 0;
+let dailyRows = 0, dailyLast = null;
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
@@ -82,17 +92,23 @@ async function upsertVessel(mmsi, name, type, len) {
 }
 
 /* ---- geçiş kaydı ---- */
-async function recordTransit(mmsi, tSec, dir, lat) {
+async function recordTransit(mmsi, tSec, dir, lat, method) {
   const m = meta.get(mmsi) || {};
   transitCount++;
-  log(`GEÇİŞ ${dir === "W" ? "◀ körfeze giriş" : "körfezden çıkış ▶"}  MMSI ${mmsi}  ${m.name || ""}`);
+  log(`GEÇİŞ [${method}] ${dir === "W" ? "◀ körfeze giriş" : "körfezden çıkış ▶"}  MMSI ${mmsi}  ${m.name || ""}`);
   try {
     await pool.query(
-      `INSERT INTO transits (mmsi, ts, direction, ship_type, name, length_m, lat)
-       VALUES ($1, to_timestamp($2), $3, $4, $5, $6, $7)`,
-      [mmsi, tSec, dir, m.type ?? null, m.name || null, m.len ?? null, lat]
+      `INSERT INTO transits (mmsi, ts, direction, ship_type, name, length_m, lat, method)
+       VALUES ($1, to_timestamp($2), $3, $4, $5, $6, $7, $8)`,
+      [mmsi, tSec, dir, m.type ?? null, m.name || null, m.len ?? null, lat, method]
     );
   } catch (e) { log("DB transit hatası:", e.message); }
+}
+function tryTransit(mmsi, tSec, dir, lat, method) {
+  const nowMs = Date.now();
+  if ((nowMs - (lastCross.get(mmsi) || 0)) <= TRANSIT_GAP) return;
+  lastCross.set(mmsi, nowMs);
+  recordTransit(mmsi, tSec, dir, lat, method);
 }
 
 /* ---- mesaj işleme ---- */
@@ -101,23 +117,29 @@ function onPosition(mmsi, tSec, lon, lat, sog, cog) {
   const prev = lastPos.get(mmsi);
   lastPos.set(mmsi, { lon, lat, t: tSec });
 
-  if (!known || !isTanker(known.type)) return;   // yalnız tankerler
+  if (!known || !isTanker(known.type)) return;
 
-  // sayım hattı kontrolü
+  // 1) sayım hattı
   if (prev &&
-      (tSec - prev.t) < 1800 &&                  // 30 dk'dan eski değil
-      Math.abs(lon - prev.lon) < 0.5 &&          // ışınlanma koruması
+      (tSec - prev.t) < 1800 &&
+      Math.abs(lon - prev.lon) < 0.5 &&
       lat > GATE_LAT_MIN && lat < GATE_LAT_MAX &&
       prev.lat > GATE_LAT_MIN && prev.lat < GATE_LAT_MAX &&
       (prev.lon - GATE_LON) * (lon - GATE_LON) < 0) {
-    const nowMs = Date.now();
-    if ((nowMs - (lastCross.get(mmsi) || 0)) > TRANSIT_GAP) {
-      lastCross.set(mmsi, nowMs);
-      recordTransit(mmsi, tSec, lon > prev.lon ? "E" : "W", lat);
-    }
+    tryTransit(mmsi, tSec, lon > prev.lon ? "E" : "W", lat, "gate");
   }
 
-  // örnekleme
+  // 2) yaka çıkarımı (boğazdaki AIS ölü bölgesine dayanıklı)
+  const side = lon < SIDE_WEST_LON ? "G" : (lon > SIDE_EAST_LON ? "O" : null);
+  if (side) {
+    const ps = sideSeen.get(mmsi);
+    if (ps && ps.side !== side && (tSec - ps.t) < SIDE_MAX_GAP) {
+      tryTransit(mmsi, tSec, side === "O" ? "E" : "W", lat, "inferred");
+    }
+    sideSeen.set(mmsi, { side, t: tSec });
+  }
+
+  // 3) örnekleme
   const st = lastStored.get(mmsi);
   if (!st || (tSec - st.t) >= SAMPLE_SEC ||
       Math.abs(lon - st.lon) >= SAMPLE_DEG || Math.abs(lat - st.lat) >= SAMPLE_DEG) {
@@ -152,11 +174,50 @@ function handleMessage(raw) {
     const len = (dim.A && dim.B) ? (dim.A + dim.B) : null;
     const before = meta.get(mmsi);
     meta.set(mmsi, { type, name, len });
-    // yalnız tankerleri (ve tanker olduğu yeni öğrenilenleri) veritabanına yaz
     if (isTanker(type) && (!before || before.type !== type || before.name !== name || before.len !== len)) {
       upsertVessel(mmsi, name, type, len);
     }
   }
+}
+
+/* ---- resmî günlük seri (IMF PortWatch, straits.live aracılığıyla) ---- */
+async function fetchDaily() {
+  try {
+    const r = await fetch(DAILY_URL, { headers: { "User-Agent": "hurmuz-trafik/1.0 (kisisel proje)" } });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    const rows = j.chokepointTransitsHistory || j.history || [];
+    const latest = j.latest || null;
+    const all = [...rows];
+    if (latest && !all.some(x => x.date === latest.date)) all.push(latest);
+    let n = 0;
+    for (const row of all) {
+      if (!row || !row.date) continue;
+      await pool.query(
+        `INSERT INTO daily_stats (day, n_total, n_tanker, n_cargo, n_container, capacity_dwt, fetched_at)
+         VALUES ($1,$2,$3,$4,$5,$6,now())
+         ON CONFLICT (day) DO UPDATE SET
+           n_total=EXCLUDED.n_total, n_tanker=EXCLUDED.n_tanker,
+           n_cargo=EXCLUDED.n_cargo, n_container=EXCLUDED.n_container,
+           capacity_dwt=EXCLUDED.capacity_dwt, fetched_at=now()`,
+        [row.date, row.nTotal ?? null, row.nTanker ?? null,
+         row.nCargo ?? null, row.nContainer ?? null, row.capacity ?? null]
+      );
+      n++;
+    }
+    const baseline = {
+      baselineMedian: latest?.baselineMedian ?? null,
+      preCrisisBaselineMedian: latest?.preCrisisBaselineMedian ?? null,
+      asOf: j.asOf || null
+    };
+    await pool.query(
+      `INSERT INTO kv (k, v, updated_at) VALUES ('baseline', $1, now())
+       ON CONFLICT (k) DO UPDATE SET v=EXCLUDED.v, updated_at=now()`,
+      [JSON.stringify(baseline)]
+    );
+    dailyRows = n; dailyLast = latest?.date || (all.at(-1)?.date ?? null);
+    log(`Günlük seri güncellendi: ${n} gün (son gün ${dailyLast}, toplam ${latest?.nTotal ?? "?"} geçiş).`);
+  } catch (e) { log("Günlük seri hatası:", e.message); }
 }
 
 /* ---- websocket bağlantısı + bekçi ---- */
@@ -179,14 +240,14 @@ function connect() {
     setTimeout(connect, 5000);
   });
 }
-setInterval(() => {  // 2 dk mesaj gelmezse bağlantıyı tazele
+setInterval(() => {
   if (lastMsgAt && Date.now() - lastMsgAt > 120000) {
     log("Bekçi: 120 sn'dir mesaj yok, bağlantı yenileniyor.");
     try { ws?.terminate(); } catch {}
   }
 }, 30000);
 
-/* ---- açılışta bilinen tankerleri yükle ---- */
+/* ---- açılış ---- */
 async function boot() {
   try {
     const r = await pool.query("SELECT mmsi, name, ship_type, length_m FROM vessels");
@@ -194,10 +255,12 @@ async function boot() {
     log(`Künye yüklendi: ${r.rows.length} gemi.`);
   } catch (e) { log("Künye yükleme hatası:", e.message); }
   connect();
+  fetchDaily();
+  setInterval(fetchDaily, DAILY_EVERY);
 }
 boot();
 
-/* ---- bakım: eski konumları buda ---- */
+/* ---- bakım ---- */
 async function prune() {
   try {
     const r = await pool.query(`DELETE FROM positions WHERE ts < now() - interval '${PRUNE_HOURS} hours'`);
@@ -207,18 +270,19 @@ async function prune() {
 setInterval(prune, 6 * 3600 * 1000);
 setTimeout(prune, 60000);
 
-/* ---- sağlık ucu (Render/izleme için) ---- */
+/* ---- sağlık ucu ---- */
 http.createServer((req, res) => {
   const body = JSON.stringify({
     ok: lastMsgAt > 0 && (Date.now() - lastMsgAt) < 180000,
     sonMesajSn: lastMsgAt ? Math.round((Date.now() - lastMsgAt) / 1000) : null,
     mesaj: msgCount, yazilanKonum: posWritten, gecis: transitCount,
-    izlenenGemi: lastPos.size, bilinenTanker: [...meta.values()].filter(m => isTanker(m.type)).length
+    izlenenGemi: lastPos.size,
+    bilinenTanker: [...meta.values()].filter(m => isTanker(m.type)).length,
+    gunlukSeriGun: dailyRows, gunlukSonTarih: dailyLast
   });
   res.writeHead(200, { "Content-Type": "application/json" });
   res.end(body);
 }).listen(process.env.PORT || 8080, () => log("Sağlık ucu hazır: /  (port", process.env.PORT || 8080, ")"));
 
-/* ---- düzgün kapanış ---- */
 process.on("SIGTERM", async () => { await flush(); process.exit(0); });
 process.on("SIGINT",  async () => { await flush(); process.exit(0); });
