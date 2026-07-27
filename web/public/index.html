@@ -3,10 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hürmüz Boğazı · Tanker Trafiği — Canlı İzleme</title>
-<meta property="og:title" content="Hürmüz Boğazı — Tanker Trafiği">
-<meta property="og:description" content="Resmî günlük geçiş istatistikleri (IMF PortWatch) + hızlandırılmış trafik animasyonu. 7/24.">
+<meta name="theme-color" content="#EFE9D6">
+<title>Hürmüz Boğazı · Tanker Trafiği — Strait of Hormuz Tanker Traffic</title>
+<meta name="description" content="Strait of Hormuz tanker traffic: official daily transit statistics (IMF PortWatch), live Brent price and an animated chart-style map. TR · EN · DE.">
+<meta property="og:title" content="Strait of Hormuz — Tanker Traffic · Hürmüz Boğazı">
+<meta property="og:description" content="Official daily transit statistics (IMF PortWatch) + live Brent + animated traffic map. 24/7 · TR EN DE.">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@yuppiepoff">
+<meta name="twitter:creator" content="@yuppiepoff">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23EFE9D6'/%3E%3Cpath d='M5 19h17l5-3.5L22 12H5z' fill='%23B0541C'/%3E%3Cpath d='M3 24h26' stroke='%23B03187' stroke-width='2' stroke-dasharray='4 3'/%3E%3C/svg%3E">
 <style>
   :root{
     --paper:#EFE9D6; --paper-2:#E8E0C8; --panel:#ECE5CF;
@@ -24,41 +29,46 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{background:var(--paper);color:var(--ink);font-family:var(--sans);display:flex;flex-direction:column;min-height:100vh}
-  header{padding:14px 18px 10px;border-bottom:3px double var(--rule);
-    display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  header{padding:12px 16px 10px;border-bottom:3px double var(--rule);
+    display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap}
   .mast-left .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-soft);text-transform:uppercase;margin-bottom:4px}
-  .mast-left h1{font-family:var(--serif);font-weight:400;font-size:clamp(19px,3.4vw,27px);letter-spacing:.08em;text-transform:uppercase}
-  .mast-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .mast-left h1{font-family:var(--serif);font-weight:400;font-size:clamp(18px,3.2vw,27px);letter-spacing:.07em;text-transform:uppercase}
+  .mast-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .chip{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
     border:1px solid var(--rule);padding:5px 9px;color:var(--ink);display:inline-flex;align-items:center;gap:7px;background:var(--paper-2)}
   .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--live);animation:pulse 1.6s infinite}
   .chip.sim .dot{background:var(--crude)}
   #clock{font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--ink-soft)}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  .seg{display:flex}
+  .seg button+button{border-left:none}
+  .seg.mini button{font-size:9px;padding:5px 8px;letter-spacing:.12em}
   main{flex:1;display:flex;align-items:stretch;min-height:0}
-  #mapwrap{flex:1 1 620px;position:relative;padding:14px;min-width:320px;min-height:380px}
+  #mapwrap{flex:1 1 620px;position:relative;padding:12px;min-width:300px;min-height:380px}
   #stage{position:relative;width:100%;height:100%;min-height:360px}
   canvas#map{position:absolute;inset:0;width:100%;height:100%;display:block}
   #simBanner{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);display:none;
-    max-width:min(92%,560px);background:var(--paper);border:1px solid var(--rule);
+    max-width:min(94%,560px);background:var(--paper);border:1px solid var(--rule);
     padding:6px 10px;font-size:10.5px;line-height:1.45;color:var(--ink-soft);text-align:center}
   #simBanner b{color:var(--crude)}
   #empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:24px}
   #empty div{max-width:420px;font-size:13px;line-height:1.6;color:var(--ink-soft);
     border:1px dashed var(--ink-faint);background:var(--paper);padding:16px 18px}
-  aside{flex:0 0 300px;border-left:1px solid var(--rule);background:var(--panel);
-    padding:16px 16px 12px;display:flex;flex-direction:column;gap:14px;overflow-y:auto}
+  aside{flex:0 0 302px;border-left:1px solid var(--rule);background:var(--panel);
+    padding:14px 14px 12px;display:flex;flex-direction:column;gap:13px;overflow-y:auto}
   .blk{border:1px solid var(--rule);background:var(--paper);padding:10px 12px 12px}
-  .blk h2{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);
-    border-bottom:1px solid var(--rule);padding-bottom:6px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:baseline}
-  .blk h2 small{letter-spacing:.05em;color:var(--ink-faint);font-size:9px}
-  .big{font-family:var(--mono);font-size:34px;line-height:1}
-  .big small{font-size:11px;letter-spacing:.12em;color:var(--ink-soft);margin-left:6px}
+  .blk h2{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft);
+    border-bottom:1px solid var(--rule);padding-bottom:6px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .blk h2 small{letter-spacing:.05em;color:var(--ink-faint);font-size:9px;text-align:right;flex:1}
+  .big{font-family:var(--mono);font-size:33px;line-height:1;display:flex;align-items:baseline;flex-wrap:wrap}
+  .big small{font-size:10px;letter-spacing:.12em;color:var(--ink-soft);margin-left:7px}
+  .big .chg{font-size:13px;margin-left:9px}
+  .up{color:var(--live)} .down{color:var(--alert)}
   .duo{display:flex;margin-top:10px;border-top:1px dashed var(--ink-faint);padding-top:8px}
-  .duo>div{flex:1}
+  .duo>div{flex:1;min-width:0}
   .duo>div+div{border-left:1px dashed var(--ink-faint);padding-left:12px}
-  .lbl{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:3px}
-  .val{font-family:var(--mono);font-size:19px}
+  .lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:3px}
+  .val{font-family:var(--mono);font-size:18px}
   .row{display:flex;align-items:center;gap:8px;margin:6px 0}
   .row .k{display:flex;align-items:center;gap:7px;font-size:12px;flex:0 0 118px}
   .swatch{width:14px;height:8px;flex:none}
@@ -66,13 +76,16 @@
   .bar i{position:absolute;inset:0 auto 0 0;background:var(--ink-soft)}
   .row .n{font-family:var(--mono);font-size:12px;width:26px;text-align:right}
   canvas.minichart{width:100%;height:64px;display:block;margin-top:4px}
-  .footnote{font-size:10.5px;line-height:1.5;color:var(--ink-soft)}
+  .footnote{font-size:10.5px;line-height:1.55;color:var(--ink-soft)}
   .footnote b{color:var(--ink)}
   .footnote a{color:var(--ink);text-decoration:underline dotted}
+  .credit{font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--ink-soft);
+    border-top:1px solid var(--rule);padding-top:9px;margin-top:2px}
+  .credit a{color:var(--ink);text-decoration:underline dotted}
   .ref{border-top:1px dashed var(--ink-faint);margin-top:9px;padding-top:7px;font-family:var(--mono);
-    font-size:10px;letter-spacing:.04em;color:var(--ink-soft);display:flex;justify-content:space-between}
+    font-size:10px;letter-spacing:.04em;color:var(--ink-soft);display:flex;justify-content:space-between;gap:8px}
   .ref.nl{border-top:none;margin-top:2px;padding-top:0}
-  footer{border-top:3px double var(--rule);padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--paper-2)}
+  footer{border-top:3px double var(--rule);padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--paper-2)}
   .ctl{display:flex;align-items:center;gap:8px}
   .ctl .lbl{margin:0}
   button{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
@@ -81,14 +94,17 @@
   button:focus-visible{outline:2px solid var(--magenta);outline-offset:2px}
   button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
   button.rec.on{background:var(--alert);border-color:var(--alert);color:#fff}
-  .seg{display:flex}
-  .seg button+button{border-left:none}
-  footer .note{font-size:10.5px;color:var(--ink-soft);margin-left:auto;max-width:340px;line-height:1.4}
+  footer .note{font-size:10.5px;color:var(--ink-soft);margin-left:auto;max-width:320px;line-height:1.4}
+  @media (pointer:coarse){
+    button{padding:10px 14px}
+    .seg.mini button{padding:8px 10px}
+  }
   @media (max-width:820px){
     main{flex-direction:column}
     aside{flex:1 1 auto;border-left:none;border-top:1px solid var(--rule)}
-    #mapwrap{min-height:62vh}
-    footer .note{max-width:none;margin-left:0}
+    #mapwrap{min-height:58vh}
+    footer .note{max-width:none;margin-left:0;flex-basis:100%}
+    .mast-left h1{font-size:19px}
   }
 </style>
 </head>
@@ -96,12 +112,15 @@
 
 <header>
   <div class="mast-left">
-    <div class="eyebrow">Gözlem İstasyonu · 7/24</div>
-    <h1>Hürmüz Boğazı Tanker Trafiği</h1>
+    <div class="eyebrow" data-i="eyebrow">Gözlem İstasyonu · 7/24</div>
+    <h1 data-i="title">Hürmüz Boğazı Tanker Trafiği</h1>
   </div>
   <div class="mast-right">
-    <span class="chip" id="modeChip"><span class="dot"></span><span id="modeTxt">Yükleniyor</span></span>
-    <span class="chip" id="lag">gecikme —</span>
+    <span class="seg mini" id="langSeg">
+      <button data-lang="tr">TR</button><button data-lang="en">EN</button><button data-lang="de">DE</button>
+    </span>
+    <span class="chip" id="modeChip"><span class="dot"></span><span id="modeTxt">…</span></span>
+    <span class="chip" id="lag">—</span>
     <span id="clock">--:--</span>
   </div>
 </header>
@@ -110,78 +129,154 @@
   <div id="mapwrap">
     <div id="stage">
       <canvas id="map"></canvas>
-      <div id="simBanner"><b>Temsilî animasyon</b> — yoğunluk, IMF PortWatch'un son günlük sayımına ölçeklidir
-        (<span id="simCal">—</span>). Bölgede AIS istasyonları yayına döndüğünde gerçek gemi izleri otomatik gösterilir.</div>
-      <div id="empty"><div id="emptyMsg">Yükleniyor…</div></div>
+      <div id="simBanner"></div>
+      <div id="empty"><div id="emptyMsg">…</div></div>
     </div>
   </div>
 
   <aside>
     <div class="blk" id="blkDaily">
-      <h2>Günlük Geçiş · Resmî <small id="dailyDate">IMF PortWatch</small></h2>
-      <div class="big"><span id="dTotal">—</span><small>GEMİ / GÜN</small></div>
+      <h2><span data-i="blk_daily">Günlük Geçiş · Resmî</span> <small id="dailyDate">IMF PortWatch</small></h2>
+      <div class="big"><span id="dTotal">—</span><small data-i="unit_daily">GEMİ / GÜN</small></div>
       <div class="duo">
-        <div><div class="lbl">Tanker</div><div class="val" id="dTanker">—</div></div>
-        <div><div class="lbl">Kriz öncesi medyan</div><div class="val" id="dBase">—</div></div>
+        <div><div class="lbl" data-i="lbl_tanker">Tanker</div><div class="val" id="dTanker">—</div></div>
+        <div><div class="lbl" data-i="lbl_base">Kriz öncesi medyan</div><div class="val" id="dBase">—</div></div>
       </div>
     </div>
 
+    <div class="blk" id="blkOil">
+      <h2><span data-i="blk_oil">Brent Petrol · Canlı</span> <small data-i="oil_small">USD/varil · straits.live</small></h2>
+      <div class="big"><span id="brent">—</span><span class="chg" id="brentChg"></span></div>
+      <canvas id="oilc" class="minichart"></canvas>
+      <div class="ref"><span data-i="oil_range">son 7 gün</span><span>WTI: <span id="wti">—</span></span></div>
+    </div>
+
     <div class="blk" id="blkGate" style="display:none">
-      <h2>Son 24 Saat · Canlı Sayım <small>AIS · hat 56°36′D</small></h2>
-      <div class="big"><span id="tTotal">0</span><small>TANKER</small></div>
+      <h2><span data-i="blk_gate">Son 24 Saat · Canlı Sayım</span> <small data-i="gate_small">AIS · hat 56°36′D</small></h2>
+      <div class="big"><span id="tTotal">0</span><small data-i="unit_tanker">TANKER</small></div>
       <div class="duo">
-        <div><div class="lbl">Körfez'e giriş ◀</div><div class="val" id="tIn">0</div></div>
-        <div><div class="lbl">▶ Körfez'den çıkış</div><div class="val" id="tOut">0</div></div>
+        <div><div class="lbl" data-i="lbl_in">Körfez'e giriş ◀</div><div class="val" id="tIn">0</div></div>
+        <div><div class="lbl" data-i="lbl_out">▶ Körfez'den çıkış</div><div class="val" id="tOut">0</div></div>
       </div>
     </div>
 
     <div class="blk" id="blkFleet" style="display:none">
-      <h2>Filo Dağılımı <small>son 24 sa · AIS</small></h2>
-      <div class="row"><div class="k"><span class="swatch" style="background:var(--crude)"></span>VLCC · ham</div><div class="bar"><i id="bVLCC"></i></div><div class="n" id="nVLCC">0</div></div>
-      <div class="row"><div class="k"><span class="swatch" style="background:var(--crude);opacity:.75"></span>Suezmax · ham</div><div class="bar"><i id="bSUEZ"></i></div><div class="n" id="nSUEZ">0</div></div>
-      <div class="row"><div class="k"><span class="swatch" style="background:var(--crude);opacity:.5"></span>Aframax · ham</div><div class="bar"><i id="bAFRA"></i></div><div class="n" id="nAFRA">0</div></div>
-      <div class="row"><div class="k"><span class="swatch" style="background:var(--prod)"></span>Ürün tankeri</div><div class="bar"><i id="bPROD"></i></div><div class="n" id="nPROD">0</div></div>
-      <div class="ref"><span>Haritada izlenen</span><span id="active">0</span></div>
+      <h2><span data-i="blk_fleet">Filo Dağılımı</span> <small data-i="small_24_ais">son 24 sa · AIS</small></h2>
+      <div class="row"><div class="k"><span class="swatch" style="background:var(--crude)"></span><span id="rVLCC">VLCC</span></div><div class="bar"><i id="bVLCC"></i></div><div class="n" id="nVLCC">0</div></div>
+      <div class="row"><div class="k"><span class="swatch" style="background:var(--crude);opacity:.75"></span><span id="rSUEZ">Suezmax</span></div><div class="bar"><i id="bSUEZ"></i></div><div class="n" id="nSUEZ">0</div></div>
+      <div class="row"><div class="k"><span class="swatch" style="background:var(--crude);opacity:.5"></span><span id="rAFRA">Aframax</span></div><div class="bar"><i id="bAFRA"></i></div><div class="n" id="nAFRA">0</div></div>
+      <div class="row"><div class="k"><span class="swatch" style="background:var(--prod)"></span><span id="rPROD">Ürün</span></div><div class="bar"><i id="bPROD"></i></div><div class="n" id="nPROD">0</div></div>
+      <div class="ref"><span data-i="watched">Haritada izlenen</span><span id="active">0</span></div>
     </div>
 
     <div class="blk" id="blkChart">
-      <h2>Son 120 Gün <small>günlük toplam geçiş</small></h2>
+      <h2><span data-i="blk_chart">Son 120 Gün</span> <small data-i="chart_small">günlük toplam geçiş</small></h2>
       <canvas id="dailyc" class="minichart"></canvas>
-      <div class="ref"><span>Son gün, normalin</span><span id="pctBase">—</span></div>
-      <div class="ref nl"><span>Kapasite (son gün)</span><span id="dDwt">—</span></div>
+      <div class="ref"><span data-i="pct_lbl">Son gün, normalin</span><span id="pctBase">—</span></div>
+      <div class="ref nl"><span data-i="dwt_lbl">Kapasite (son gün)</span><span id="dDwt">—</span></div>
     </div>
 
     <div class="blk" id="blkHourly" style="display:none">
-      <h2>Saatlik Canlı Sayım <small>son 24 sa · AIS</small></h2>
+      <h2><span data-i="blk_hourly">Saatlik Canlı Sayım</span> <small data-i="small_24_ais">son 24 sa · AIS</small></h2>
       <canvas id="hourly" class="minichart"></canvas>
-      <div class="ref"><span>Tahmini hacim</span><span id="vol">0,0 mn varil</span></div>
+      <div class="ref"><span data-i="vol_lbl">Tahmini hacim</span><span id="vol">—</span></div>
     </div>
 
-    <div class="footnote">
-      Günlük geçiş serisi: <b>IMF PortWatch</b> (uydu AIS; <a href="https://straits.live" rel="noopener">straits.live</a> aracılığıyla,
-      haftalık güncellenir). Canlı izler: <a href="https://aisstream.io" rel="noopener">aisstream.io</a>.
-      AIS tabanlı her sayım <b>alt sınırdır</b>: transponderini kapatan veya sahte konum yayınlayan gemiler görünmez.
-    </div>
+    <div class="footnote" id="foot"></div>
+    <div class="credit" id="credit"></div>
   </aside>
 </main>
 
 <footer>
-  <div class="ctl"><button id="play" class="on" aria-label="Oynat / Duraklat">❚❚ Duraklat</button></div>
-  <div class="ctl"><span class="lbl">Hız</span>
+  <div class="ctl"><button id="play" class="on"></button></div>
+  <div class="ctl"><span class="lbl" data-i="speed">Hız</span>
     <span class="seg">
       <button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button data-sp="4">4×</button>
     </span>
   </div>
-  <div class="ctl"><button id="rec" class="rec">● Kaydet</button></div>
-  <div class="note">Sayfa kendiliğinden oynar. Kaydet düğmesi haritayı WebM video olarak indirir — tweete video + link birlikte eklemek için.</div>
+  <div class="ctl"><button id="rec" class="rec"></button></div>
+  <div class="note" id="note"></div>
 </footer>
 
 <script>
 "use strict";
 /* ============================================================
-   HÜRMÜZ BOĞAZI v2 — hibrit: gerçek AIS izleri varsa CANLI mod,
-   yoksa resmî günlük sayıma ölçekli TEMSİLÎ mod.
+   HÜRMÜZ v3 — TR/EN/DE + canlı Brent + mobil cila
    ============================================================ */
+
+/* ---------- dil ---------- */
+const I18N={
+tr:{eyebrow:"Gözlem İstasyonu · 7/24",title:"Hürmüz Boğazı Tanker Trafiği",
+mode_live:"Canlı · AIS",mode_sim:"Temsilî Mod",loading:"Yükleniyor",
+lag_none:"AIS sessiz",lag_s:"gecikme {n} sn",lag_m:"gecikme {n} dk",
+banner:"<b>Temsilî animasyon</b> — yoğunluk, IMF PortWatch'un son günlük sayımına ölçeklidir ({cal}). Bölgede AIS istasyonları yayına döndüğünde gerçek gemi izleri otomatik gösterilir.",
+cal_wait:"resmî seri bekleniyor",cal_fmt:"son gün {n} gemi, ~{t} tanker",
+blk_daily:"Günlük Geçiş · Resmî",unit_daily:"GEMİ / GÜN",lbl_tanker:"Tanker",lbl_base:"Kriz öncesi medyan",
+blk_oil:"Brent Petrol · Canlı",oil_small:"USD/varil · straits.live",oil_range:"son 7 gün",oil_err:"fiyat alınamadı",
+blk_gate:"Son 24 Saat · Canlı Sayım",gate_small:"AIS · hat 56°36′D",unit_tanker:"TANKER",
+lbl_in:"Körfez'e giriş ◀",lbl_out:"▶ Körfez'den çıkış",
+blk_fleet:"Filo Dağılımı",small_24_ais:"son 24 sa · AIS",crude:"ham",prod:"Ürün tankeri",watched:"Haritada izlenen",
+blk_chart:"Son 120 Gün",chart_small:"günlük toplam geçiş",pct_lbl:"Son gün, normalin",
+dwt_lbl:"Kapasite (son gün)",dwt_unit:"bin DWT",normal_lbl:"normal ~",await_series:"resmî seri bekleniyor…",
+blk_hourly:"Saatlik Canlı Sayım",vol_lbl:"Tahmini hacim",vol_unit:"mn varil",h_ago:"-24 sa",h_now:"şimdi",
+speed:"Hız",pause:"Duraklat",play:"Oynat",rec:"Kaydet",rec_stop:"Durdur & indir",rec_no:"Kayıt desteklenmiyor",
+clock_live:"CANLI",clock_sim:"TEMSİLÎ",
+empty_api:"API'ye ulaşılamadı. Site Vercel üzerinde yayındayken bu sayfa /api uçlarından beslenir.",
+foot:'Günlük geçiş serisi: <b>IMF PortWatch</b> (uydu AIS; <a href="https://straits.live" rel="noopener">straits.live</a> aracılığıyla, haftalık güncellenir). Brent/WTI: straits.live. Canlı izler: <a href="https://aisstream.io" rel="noopener">aisstream.io</a>. AIS tabanlı her sayım <b>alt sınırdır</b>: transponderini kapatan veya sahte konum yayınlayan gemiler görünmez.',
+credit:'Bu bir <a href="https://yuppiepoff.com" rel="noopener">yuppiepoff.com</a> projesidir · X: <a href="https://x.com/yuppiepoff" rel="noopener">@yuppiepoff</a>',
+note:"Sayfa kendiliğinden oynar. ● Kaydet, haritayı WebM video olarak indirir.",
+months:["Oca","Şub","Mar","Nis","May","Haz","Tem","Ağu","Eyl","Eki","Kas","Ara"],
+map:{iran:"İ R A N",uae:"B.A.E.",oman:"UMMAN",gulf:"BASRA KÖRFEZİ",gulf2:"UMMAN KÖRFEZİ",qeshm:"Keşm",bandar:"Bender Abbas",fuj:"Fuceyra",gate:"SAYIM HATTI 56°36′D",n:"K"},num:"tr-TR"},
+en:{eyebrow:"Observation Station · 24/7",title:"Strait of Hormuz Tanker Traffic",
+mode_live:"Live · AIS",mode_sim:"Model Mode",loading:"Loading",
+lag_none:"AIS silent",lag_s:"delay {n}s",lag_m:"delay {n} min",
+banner:"<b>Modeled animation</b> — density is scaled to IMF PortWatch's latest daily count ({cal}). When AIS stations in the region come back online, real vessel tracks are shown automatically.",
+cal_wait:"awaiting official series",cal_fmt:"latest day {n} ships, ~{t} tankers",
+blk_daily:"Daily Transits · Official",unit_daily:"SHIPS / DAY",lbl_tanker:"Tankers",lbl_base:"Pre-crisis median",
+blk_oil:"Brent Crude · Live",oil_small:"USD/bbl · straits.live",oil_range:"last 7 days",oil_err:"price unavailable",
+blk_gate:"Last 24h · Live Count",gate_small:"AIS · line 56°36′E",unit_tanker:"TANKERS",
+lbl_in:"Inbound to Gulf ◀",lbl_out:"▶ Outbound",
+blk_fleet:"Fleet Mix",small_24_ais:"last 24h · AIS",crude:"crude",prod:"Product tanker",watched:"Tracked on map",
+blk_chart:"Last 120 Days",chart_small:"daily total transits",pct_lbl:"Latest day vs normal",
+dwt_lbl:"Capacity (latest day)",dwt_unit:"k DWT",normal_lbl:"normal ~",await_series:"awaiting official series…",
+blk_hourly:"Hourly Live Count",vol_lbl:"Est. volume",vol_unit:"M bbl",h_ago:"-24h",h_now:"now",
+speed:"Speed",pause:"Pause",play:"Play",rec:"Record",rec_stop:"Stop & download",rec_no:"Recording unsupported",
+clock_live:"LIVE",clock_sim:"MODEL",
+empty_api:"API unreachable. When deployed on Vercel this page is fed by its /api endpoints.",
+foot:'Daily transit series: <b>IMF PortWatch</b> (satellite AIS; via <a href="https://straits.live" rel="noopener">straits.live</a>, updated weekly). Brent/WTI: straits.live. Live tracks: <a href="https://aisstream.io" rel="noopener">aisstream.io</a>. Any AIS-based count is a <b>lower bound</b>: vessels that switch off or spoof their transponders are not visible.',
+credit:'A <a href="https://yuppiepoff.com" rel="noopener">yuppiepoff.com</a> project · X: <a href="https://x.com/yuppiepoff" rel="noopener">@yuppiepoff</a>',
+note:"The page plays automatically. ● Record downloads the map as a WebM video.",
+months:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+map:{iran:"I R A N",uae:"U.A.E.",oman:"OMAN",gulf:"PERSIAN GULF",gulf2:"GULF OF OMAN",qeshm:"Qeshm",bandar:"Bandar Abbas",fuj:"Fujairah",gate:"COUNT LINE 56°36′E",n:"N"},num:"en-US"},
+de:{eyebrow:"Beobachtungsstation · 24/7",title:"Straße von Hormus – Tankerverkehr",
+mode_live:"Live · AIS",mode_sim:"Modell-Modus",loading:"Lädt",
+lag_none:"AIS still",lag_s:"Verzögerung {n} s",lag_m:"Verzögerung {n} Min.",
+banner:"<b>Modellierte Animation</b> — die Dichte ist auf die letzte Tageszählung von IMF PortWatch skaliert ({cal}). Sobald AIS-Stationen in der Region wieder senden, werden automatisch echte Schiffsspuren angezeigt.",
+cal_wait:"offizielle Reihe ausstehend",cal_fmt:"letzter Tag {n} Schiffe, ~{t} Tanker",
+blk_daily:"Tägliche Passagen · Offiziell",unit_daily:"SCHIFFE / TAG",lbl_tanker:"Tanker",lbl_base:"Median vor der Krise",
+blk_oil:"Brent-Rohöl · Live",oil_small:"USD/Barrel · straits.live",oil_range:"letzte 7 Tage",oil_err:"Preis nicht verfügbar",
+blk_gate:"Letzte 24 h · Live-Zählung",gate_small:"AIS · Linie 56°36′O",unit_tanker:"TANKER",
+lbl_in:"Einfahrt in den Golf ◀",lbl_out:"▶ Ausfahrt",
+blk_fleet:"Flottenmix",small_24_ais:"letzte 24 h · AIS",crude:"Rohöl",prod:"Produktentanker",watched:"Auf Karte verfolgt",
+blk_chart:"Letzte 120 Tage",chart_small:"tägliche Passagen gesamt",pct_lbl:"Letzter Tag vs. normal",
+dwt_lbl:"Kapazität (letzter Tag)",dwt_unit:"Tsd. DWT",normal_lbl:"normal ~",await_series:"offizielle Reihe ausstehend…",
+blk_hourly:"Stündliche Live-Zählung",vol_lbl:"Gesch. Volumen",vol_unit:"Mio. bbl",h_ago:"-24 h",h_now:"jetzt",
+speed:"Tempo",pause:"Pause",play:"Abspielen",rec:"Aufnehmen",rec_stop:"Stopp & Download",rec_no:"Aufnahme nicht unterstützt",
+clock_live:"LIVE",clock_sim:"MODELL",
+empty_api:"API nicht erreichbar. Auf Vercel wird diese Seite von ihren /api-Endpunkten gespeist.",
+foot:'Tägliche Passagen: <b>IMF PortWatch</b> (Satelliten-AIS; über <a href="https://straits.live" rel="noopener">straits.live</a>, wöchentlich aktualisiert). Brent/WTI: straits.live. Live-Spuren: <a href="https://aisstream.io" rel="noopener">aisstream.io</a>. Jede AIS-basierte Zählung ist eine <b>Untergrenze</b>: Schiffe mit abgeschaltetem oder gefälschtem Transponder sind nicht sichtbar.',
+credit:'Ein Projekt von <a href="https://yuppiepoff.com" rel="noopener">yuppiepoff.com</a> · X: <a href="https://x.com/yuppiepoff" rel="noopener">@yuppiepoff</a>',
+note:"Die Seite läuft automatisch. ● Aufnehmen lädt die Karte als WebM-Video herunter.",
+months:["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"],
+map:{iran:"I R A N",uae:"V.A.E.",oman:"OMAN",gulf:"PERSISCHER GOLF",gulf2:"GOLF VON OMAN",qeshm:"Qeschm",bandar:"Bandar Abbas",fuj:"Fudschaira",gate:"ZÄHLLINIE 56°36′O",n:"N"},num:"de-DE"}};
+let lang=(function(){
+  try{const s=localStorage.getItem("hurmuz_lang"); if(s&&I18N[s])return s;}catch(e){}
+  const n=(navigator.language||"tr").slice(0,2).toLowerCase();
+  return I18N[n]?n:"tr";
+})();
+const t=k=>I18N[lang][k]??I18N.tr[k]??k;
+const fmtN=(n,o)=>Number(n).toLocaleString(I18N[lang].num,o);
+const pctFmt=n=>lang==="tr"?("%"+n):(n+"%");
 
 /* ---------- projeksiyon ---------- */
 const LON0=54.55, LON1=58.25, LAT0=24.55, LAT1=27.95;
@@ -214,7 +309,7 @@ const ANCHORED=[[56.55,25.06],[56.62,25.15],[56.70,24.98],[56.58,24.90],[56.66,2
 [56.76,25.10],[56.52,25.20],[56.71,25.30],[56.80,24.92],[56.60,25.27],[56.68,25.05],
 [56.75,25.20],[56.56,24.97],[56.63,25.32]];
 
-/* ---------- TSS rotaları (temsilî mod + harita süsü) ---------- */
+/* ---------- TSS rotaları ---------- */
 const E_PTS=[[54.6,26.18],[55.2,26.26],[55.8,26.34],[56.2,26.44],[56.5,26.5],[56.72,26.42],
 [56.88,26.18],[56.98,25.9],[57.2,25.5],[57.55,25.15],[58.1,24.85]];
 const W_PTS=[[58.15,25.05],[57.6,25.4],[57.25,25.75],[57.0,26.1],[56.86,26.38],
@@ -223,7 +318,7 @@ function catmull(pts,seg=24){
   const out=[];
   for(let i=0;i<pts.length-1;i++){
     const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
-    for(let t=0;t<seg;t++){const s=t/seg,s2=s*s,s3=s2*s;
+    for(let tt=0;tt<seg;tt++){const s=tt/seg,s2=s*s,s3=s2*s;
       out.push([
         0.5*((2*p1[0])+(-p0[0]+p2[0])*s+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*s2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*s3),
         0.5*((2*p1[1])+(-p0[1]+p2[1])*s+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*s2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*s3)
@@ -245,45 +340,29 @@ function along(path,d,off){
   const {pl,cum,len}=path; d=Math.max(0,Math.min(len,d));
   let lo=0,hi=cum.length-1;
   while(lo<hi){const m=(lo+hi)>>1; if(cum[m]<d) lo=m+1; else hi=m;}
-  const i=Math.max(1,lo), t=(d-cum[i-1])/((cum[i]-cum[i-1])||1);
+  const i=Math.max(1,lo), f=(d-cum[i-1])/((cum[i]-cum[i-1])||1);
   const a=pl[i-1],b=pl[i];
-  let lon=a[0]+(b[0]-a[0])*t, lat=a[1]+(b[1]-a[1])*t;
+  let lon=a[0]+(b[0]-a[0])*f, lat=a[1]+(b[1]-a[1])*f;
   const hd=Math.atan2(-((b[1]-a[1])), (b[0]-a[0])*KLON);
   if(off){ lon+=Math.sin(hd)*off*-1/KLON; lat+=Math.cos(hd)*off*-1; }
   return [lon,lat,hd];
 }
 
 /* ---------- durum ---------- */
-let mode=null;                 // 'real' | 'sim'
-let playing=true, speed=1;
-let pings=[];                  // {x,y,born(ms)}
-let S=null;                    // /api/stats
-let apiOk=true;
-
-/* gerçek mod */
+let mode=null, playing=true, speed=1, pings=[], S=null, OILJ=null;
 let T0=0,T1=0,tau=0, tracks=new Map(), vmeta={}, rtransits=[], trIdx=0, liveHoldUntil=0;
 const BASE_DUR=36, HOLD=5;
-
-/* temsilî mod */
-const CLASSES=[
-  {id:"VLCC", l:26, crude:true },
-  {id:"SUEZ", l:20, crude:true },
-  {id:"AFRA", l:16, crude:true },
-  {id:"PROD", l:12, crude:false}
-];
+const CLASSES=[{id:"VLCC",l:26,crude:true},{id:"SUEZ",l:20,crude:true},
+{id:"AFRA",l:16,crude:true},{id:"PROD",l:12,crude:false}];
 const MIX=[0.34,0.16,0.14,0.36];
 const HRS_PER_SEC=0.35;
-let ships=[], simRate=4/2/24;  // gemi/saat, yön başına (varsayılan 4/gün)
-function pickClass(){
-  const r=Math.random(); let a=0;
-  for(let i=0;i<MIX.length;i++){a+=MIX[i]; if(r<=a) return CLASSES[i];}
-  return CLASSES[3];
-}
-function simSpawn(dir, startD){
-  const path = dir==="E"?PATH_E:PATH_W;
-  ships.push({dir, cls:pickClass(), kn:11+Math.random()*4.5,
-    off:(Math.random()-0.5)*0.05, d:startD!==undefined?startD:-Math.random()*6,
-    prevLon:null, path});
+let ships=[], simRate=4/2/24;
+function pickClass(){const r=Math.random();let a=0;
+  for(let i=0;i<MIX.length;i++){a+=MIX[i];if(r<=a)return CLASSES[i];}return CLASSES[3];}
+function simSpawn(dir,startD){
+  const path=dir==="E"?PATH_E:PATH_W;
+  ships.push({dir,cls:pickClass(),kn:11+Math.random()*4.5,
+    off:(Math.random()-0.5)*0.05,d:startD!==undefined?startD:-Math.random()*6,prevLon:null,path});
 }
 function simInit(){
   ships=[];
@@ -307,17 +386,17 @@ function simStep(dtH){
   }
 }
 
-/* ---------- yardımcılar (gerçek mod) ---------- */
-function posAt(pts,t){
+/* ---------- gerçek mod yardımcıları ---------- */
+function posAt(pts,tt){
   const n=pts.length; if(!n) return null;
-  if(t < pts[0][0]-900 || t > pts[n-1][0]+1200) return null;
-  if(t <= pts[0][0])  return mk(pts,0,0,0);
-  if(t >= pts[n-1][0]) return mk(pts,Math.max(0,n-2),1,t-pts[n-1][0]);
+  if(tt < pts[0][0]-900 || tt > pts[n-1][0]+1200) return null;
+  if(tt <= pts[0][0])  return mk(pts,0,0,0);
+  if(tt >= pts[n-1][0]) return mk(pts,Math.max(0,n-2),1,tt-pts[n-1][0]);
   let lo=0, hi=n-1;
-  while(lo<hi-1){const m=(lo+hi)>>1; if(pts[m][0]<=t) lo=m; else hi=m;}
+  while(lo<hi-1){const m=(lo+hi)>>1; if(pts[m][0]<=tt) lo=m; else hi=m;}
   const gap=pts[hi][0]-pts[lo][0];
   if(gap>3600) return mk(pts,lo,0,gap);
-  const f=(t-pts[lo][0])/(gap||1);
+  const f=(tt-pts[lo][0])/(gap||1);
   return mk(pts,lo,f,0);
   function mk(p,i,f,staleGap){
     const a=p[i], b=p[Math.min(p.length-1,i+1)];
@@ -327,8 +406,8 @@ function posAt(pts,t){
     return {lon,lat,hd,stale:staleGap>3600};
   }
 }
-function dispOver(pts,t,backSec){
-  const a=posAt(pts,t-backSec), b=posAt(pts,t);
+function dispOver(pts,tt,backSec){
+  const a=posAt(pts,tt-backSec), b=posAt(pts,tt);
   if(!a||!b) return 1;
   return Math.hypot((b.lon-a.lon)*KLON,(b.lat-a.lat));
 }
@@ -347,10 +426,9 @@ async function loadStats(){
   try{
     const r=await fetch("/api/stats",{cache:"no-store"});
     if(!r.ok) throw 0;
-    S=await r.json(); apiOk=true;
-    calibrate(); fillPanel();
+    S=await r.json(); calibrate(); fillPanel();
   }catch(e){
-    if(!S){ apiOk=false; showEmpty("API'ye ulaşılamadı. Site Vercel üzerinde yayındayken /api/stats ucundan beslenir (yerel geliştirme: vercel dev)."); }
+    if(!S){ showEmpty(t("empty_api")); }
   }
 }
 async function loadReplay(){
@@ -368,50 +446,66 @@ async function loadReplay(){
     decideMode();
   }catch(e){ decideMode(); }
 }
-function tracksAlive(){
-  let pts=0; tracks.forEach(v=>pts+=v.length);
-  return pts>=6;
+async function loadOil(){
+  try{
+    const r=await fetch("https://straits.live/api/v1/oil?limit=168",{cache:"no-store"});
+    if(!r.ok) throw 0;
+    OILJ=await r.json();
+    fillOil();
+  }catch(e){
+    if(!OILJ){ $("brent").textContent="—"; $("brentChg").textContent=t("oil_err"); $("brentChg").className="chg"; }
+  }
 }
+function tracksAlive(){let p=0;tracks.forEach(v=>p+=v.length);return p>=6;}
 function calibrate(){
   const last=S&&S.daily&&S.daily.length?S.daily[S.daily.length-1]:null;
   let tpd=last?(last[2]??(last[1]?Math.round(last[1]*0.45):null)):null;
   if(!Number.isFinite(tpd)||tpd<1) tpd=last&&Number.isFinite(last[1])?Math.max(1,last[1]):4;
   simRate=Math.min(40,Math.max(1,tpd))/2/24;
-  $("simCal").textContent=(last?("son gün "+(last[1]??"?")+" gemi, ~"+tpd+" tanker"):"resmî seri bekleniyor");
+  window.__cal = last
+    ? t("cal_fmt").replace("{n}",last[1]??"?").replace("{t}",tpd)
+    : t("cal_wait");
+  renderBanner();
+}
+function renderBanner(){
+  $("simBanner").innerHTML=t("banner").replace("{cal}",window.__cal||t("cal_wait"));
 }
 function decideMode(){
   const next=tracksAlive()?"real":"sim";
-  if(next===mode) { hideEmpty(); return; }
+  if(next===mode){ hideEmpty(); return; }
   mode=next; hideEmpty();
-  if(mode==="sim"){ simInit(); }
-  else { tau=T0; trIdx=0; }
-  const chip=$("modeChip");
-  chip.classList.toggle("sim",mode==="sim");
-  $("modeTxt").textContent=mode==="sim"?"Temsilî Mod":"Canlı · AIS";
+  if(mode==="sim"){ simInit(); } else { tau=T0; trIdx=0; }
+  applyMode();
+}
+function applyMode(){
+  if(!mode) return;
+  $("modeChip").classList.toggle("sim",mode==="sim");
+  $("modeTxt").textContent=mode==="sim"?t("mode_sim"):t("mode_live");
   $("simBanner").style.display=mode==="sim"?"block":"none";
   $("blkGate").style.display=mode==="real"?"block":"none";
   $("blkFleet").style.display=mode==="real"?"block":"none";
   $("blkHourly").style.display=mode==="real"?"block":"none";
 }
-function showEmpty(t){$("emptyMsg").textContent=t;$("empty").style.display="flex";}
+function showEmpty(x){$("emptyMsg").textContent=x;$("empty").style.display="flex";}
 function hideEmpty(){$("empty").style.display="none";}
 
 /* ---------- panel ---------- */
-const fmtTR=n=>Number(n).toLocaleString("tr-TR");
+const dc=$("dailyc"), dctx=dc.getContext("2d");
+const hc=$("hourly"), hctx=hc.getContext("2d");
+const oc=$("oilc"), octx=oc.getContext("2d");
+const MONO=getComputedStyle(document.body).getPropertyValue("--mono");
 function fillPanel(){
   if(!S) return;
-  // resmî günlük blok + grafik
   const D=S.daily||[], last=D.length?D[D.length-1]:null;
   const pre=S.baseline&&S.baseline.preCrisisBaselineMedian;
-  $("dTotal").textContent=last?fmtTR(last[1]??"—"):"—";
-  $("dTanker").textContent=last&&last[2]!=null?fmtTR(last[2]):"—";
-  $("dBase").textContent=pre!=null?fmtTR(pre):"—";
+  $("dTotal").textContent=last?fmtN(last[1]??0):"—";
+  $("dTanker").textContent=last&&last[2]!=null?fmtN(last[2]):"—";
+  $("dBase").textContent=pre!=null?fmtN(pre):"—";
   $("dailyDate").textContent=last?("IMF PortWatch · "+last[0]):"IMF PortWatch";
-  $("pctBase").textContent=(last&&pre)?("%"+Math.round((last[1]/pre)*100)):"—";
-  $("dDwt").textContent=last&&last[3]?(Math.round(last[3]/1000).toLocaleString("tr-TR")+" bin DWT"):"—";
+  $("pctBase").textContent=(last&&pre)?pctFmt(Math.round((last[1]/pre)*100)):"—";
+  $("dDwt").textContent=last&&last[3]?(fmtN(Math.round(last[3]/1000))+" "+t("dwt_unit")):"—";
   drawDaily(D,pre);
-  // canlı bloklar
-  $("tTotal").textContent=fmtTR(S.total||0);
+  $("tTotal").textContent=fmtN(S.total||0);
   $("tIn").textContent=S.inb||0; $("tOut").textContent=S.outb||0;
   const by=S.byClass||{}, mx=Math.max(1,by.VLCC||0,by.SUEZ||0,by.AFRA||0,by.PROD||0);
   ["VLCC","SUEZ","AFRA","PROD"].forEach(k=>{
@@ -419,26 +513,42 @@ function fillPanel(){
     $("b"+k).style.width=((by[k]||0)/mx*100)+"%";
   });
   $("active").textContent=S.active||0;
-  $("vol").textContent=((S.kbbl||0)/1000).toLocaleString("tr-TR",{minimumFractionDigits:1,maximumFractionDigits:1})+" mn varil";
-  const lag=S.lastMsg?(S.now-S.lastMsg):null;
-  $("lag").textContent=lag===null?"AIS sessiz":(lag<90?"gecikme "+lag+" sn":"gecikme "+Math.round(lag/60)+" dk");
+  $("vol").textContent=fmtN((S.kbbl||0)/1000,{minimumFractionDigits:1,maximumFractionDigits:1})+" "+t("vol_unit");
+  const lagS=S.lastMsg?(S.now-S.lastMsg):null;
+  $("lag").textContent=lagS===null?t("lag_none")
+    :(lagS<90?t("lag_s").replace("{n}",lagS):t("lag_m").replace("{n}",Math.round(lagS/60)));
   drawHourly(S.hourly||[]);
 }
-const dc=$("dailyc"), dctx=dc.getContext("2d");
-const hc=$("hourly"), hctx=hc.getContext("2d");
-const MONO=getComputedStyle(document.body).getPropertyValue("--mono");
+function fillOil(){
+  if(!OILJ||!OILJ.points||!OILJ.points.length) return;
+  const pts=OILJ.points, last=pts[pts.length-1];
+  $("brent").textContent="$"+fmtN(last.brent,{minimumFractionDigits:2,maximumFractionDigits:2});
+  $("wti").textContent="$"+fmtN(last.wti,{minimumFractionDigits:2,maximumFractionDigits:2});
+  let prev=null;
+  for(let i=pts.length-1;i>=0;i--){ if(last.t-pts[i].t>=24*3600*1000){prev=pts[i];break;} }
+  if(!prev) prev=pts[0];
+  const chg=prev&&prev.brent?((last.brent-prev.brent)/prev.brent*100):null;
+  const el=$("brentChg");
+  if(chg===null){el.textContent="";el.className="chg";}
+  else{
+    const s=(chg>=0?"+":"")+fmtN(chg,{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
+    el.textContent=s+" / 24h";
+    el.className="chg "+(chg>=0?"up":"down");
+  }
+  drawOil(pts);
+}
 function drawDaily(D,pre){
   const wpx=dc.getBoundingClientRect().width;
   dctx.clearRect(0,0,wpx,64);
   if(!D.length){dctx.fillStyle="rgba(51,48,31,.5)";dctx.font="10px "+MONO;
-    dctx.textAlign="center";dctx.fillText("resmî seri bekleniyor…",wpx/2,36);return;}
+    dctx.textAlign="center";dctx.fillText(t("await_series"),wpx/2,36);return;}
   const vals=D.map(r=>r[1]||0);
   const ymax=Math.max(pre||0,...vals,4)*1.08, bw=wpx/D.length;
   if(pre){ const y=56-56*(pre/ymax);
     dctx.setLineDash([3,3]); dctx.strokeStyle="rgba(51,48,31,.55)";
     dctx.beginPath();dctx.moveTo(0,y);dctx.lineTo(wpx,y);dctx.stroke();dctx.setLineDash([]);
     dctx.fillStyle="rgba(51,48,31,.6)";dctx.font="8px "+MONO;dctx.textAlign="left";
-    dctx.fillText("normal ~"+pre,2,Math.max(8,y-3));
+    dctx.fillText(t("normal_lbl")+pre,2,Math.max(8,y-3));
   }
   vals.forEach((v,i)=>{
     const h=Math.max(v>0?1.5:0,56*(v/ymax));
@@ -460,8 +570,28 @@ function drawHourly(hs){
     hctx.fillRect(i*bw+1.5,56-h,bw-3,h);
   });
   hctx.fillStyle="rgba(51,48,31,.55)"; hctx.font="8px "+MONO;
-  hctx.textAlign="left"; hctx.fillText("-24 sa",1,63);
-  hctx.textAlign="right"; hctx.fillText("şimdi",wpx-1,63);
+  hctx.textAlign="left"; hctx.fillText(t("h_ago"),1,63);
+  hctx.textAlign="right"; hctx.fillText(t("h_now"),wpx-1,63);
+}
+function drawOil(pts){
+  const wpx=oc.getBoundingClientRect().width;
+  octx.clearRect(0,0,wpx,64);
+  if(!pts.length) return;
+  const vs=pts.map(p=>p.brent).filter(v=>typeof v==="number");
+  let mn=Math.min(...vs), mx=Math.max(...vs);
+  if(mx-mn<0.5){mn-=0.5;mx+=0.5;}
+  const pad=(mx-mn)*0.12; mn-=pad; mx+=pad;
+  const X=i=>i/(pts.length-1)*wpx;
+  const Y=v=>58-(v-mn)/(mx-mn)*50;
+  octx.beginPath();
+  pts.forEach((p,i)=>{const y=Y(p.brent); i?octx.lineTo(X(i),y):octx.moveTo(X(i),y);});
+  octx.strokeStyle="rgba(51,48,31,.75)"; octx.lineWidth=1.4; octx.stroke();
+  const lp=pts[pts.length-1];
+  octx.beginPath(); octx.arc(wpx-1.5,Y(lp.brent),2.6,0,7);
+  octx.fillStyle="#B03187"; octx.fill();
+  octx.fillStyle="rgba(51,48,31,.55)"; octx.font="8px "+MONO;
+  octx.textAlign="left"; octx.fillText("$"+Math.round(mx),1,9);
+  octx.fillText("$"+Math.round(mn),1,63);
 }
 
 /* ---------- çizim ---------- */
@@ -477,10 +607,10 @@ function resize(){
   let w=r.width-m*2, h=r.height-m*2;
   if(w/h>AR) w=h*AR; else h=w/AR;
   W=w; H=h; OX=(r.width-w)/2; OY=(r.height-h)/2;
-  [dc,hc].forEach(c=>{const rr=c.getBoundingClientRect();
+  [dc,hc,oc].forEach(c=>{const rr=c.getBoundingClientRect();
     c.width=rr.width*DPR;c.height=64*DPR;c.getContext("2d").setTransform(DPR,0,0,DPR,0,0);});
 }
-window.addEventListener("resize",resize);
+window.addEventListener("resize",()=>{resize(); if(S)fillPanel(); if(OILJ)fillOil();});
 function poly(pts){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(PX(p[0]),PY(p[1])):ctx.moveTo(PX(p[0]),PY(p[1])));ctx.closePath();}
 function drawLand(){
   const LAND=CSSV("--land"), EDGE=CSSV("--land-edge"), SHAL=CSSV("--shallow");
@@ -515,31 +645,32 @@ function drawGate(){
   ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y1); ctx.stroke(); ctx.setLineDash([]);
   ctx.save(); ctx.translate(x,y1+4); ctx.rotate(Math.PI/2);
   ctx.fillStyle="rgba(51,48,31,.75)"; ctx.font="9px "+MONO; ctx.textAlign="left";
-  ctx.fillText("SAYIM HATTI 56°36′D",4,3); ctx.restore();
+  ctx.fillText(t("map").gate,4,3); ctx.restore();
 }
-function label(t,lon,lat,opt={}){
+function label(x,lon,lat,opt={}){
   ctx.save(); ctx.translate(PX(lon),PY(lat));
   if(opt.rot) ctx.rotate(opt.rot);
   ctx.fillStyle=opt.c||"rgba(51,48,31,.85)";
   ctx.font=opt.f||("10px "+MONO);
   ctx.textAlign=opt.a||"center";
   if(opt.sp){
-    const chs=[...t];
-    let x=-(chs.reduce((s,c)=>s+ctx.measureText(c).width+opt.sp,0)-opt.sp)/2;
-    chs.forEach(c=>{ctx.fillText(c,x+ctx.measureText(c).width/2,0);x+=ctx.measureText(c).width+opt.sp;});
-  } else ctx.fillText(t,0,0);
+    const chs=[...x];
+    let xx=-(chs.reduce((s,c)=>s+ctx.measureText(c).width+opt.sp,0)-opt.sp)/2;
+    chs.forEach(c=>{ctx.fillText(c,xx+ctx.measureText(c).width/2,0);xx+=ctx.measureText(c).width+opt.sp;});
+  } else ctx.fillText(x,0,0);
   ctx.restore();
 }
 function drawLabels(){
-  label("İ R A N",56.75,27.55,{f:"12px "+MONO,sp:6,c:"rgba(51,48,31,.6)"});
-  label("B.A.E.",55.15,24.78,{f:"10px "+MONO,sp:4,c:"rgba(51,48,31,.55)"});
-  label("UMMAN",56.4,25.55,{f:"9px "+MONO,sp:3,c:"rgba(51,48,31,.55)",rot:-1.25});
-  label("BASRA KÖRFEZİ",54.95,25.98,{f:"italic 13px "+SERIF,sp:2.5,c:"rgba(32,60,80,.55)"});
-  label("UMMAN KÖRFEZİ",57.55,24.78,{f:"italic 13px "+SERIF,sp:2.5,c:"rgba(32,60,80,.55)"});
-  label("Keşm",55.8,26.86,{f:"italic 10px "+SERIF,c:"rgba(51,48,31,.6)"});
-  [[56.27,27.16,"Bender Abbas"],[56.36,25.12,"Fuceyra"]].forEach(([lo,la,t])=>{
+  const M=t("map");
+  label(M.iran,56.75,27.55,{f:"12px "+MONO,sp:6,c:"rgba(51,48,31,.6)"});
+  label(M.uae,55.15,24.78,{f:"10px "+MONO,sp:4,c:"rgba(51,48,31,.55)"});
+  label(M.oman,56.4,25.55,{f:"9px "+MONO,sp:3,c:"rgba(51,48,31,.55)",rot:-1.25});
+  label(M.gulf,54.95,25.98,{f:"italic 13px "+SERIF,sp:2.5,c:"rgba(32,60,80,.55)"});
+  label(M.gulf2,57.55,24.78,{f:"italic 13px "+SERIF,sp:2.5,c:"rgba(32,60,80,.55)"});
+  label(M.qeshm,55.8,26.86,{f:"italic 10px "+SERIF,c:"rgba(51,48,31,.6)"});
+  [[56.27,27.16,M.bandar],[56.36,25.12,M.fuj]].forEach(([lo,la,x])=>{
     ctx.beginPath();ctx.arc(PX(lo),PY(la),2.3,0,7);ctx.fillStyle="rgba(51,48,31,.8)";ctx.fill();
-    label(t,lo+0.06,la+0.07,{a:"left",f:"9.5px "+MONO,c:"rgba(51,48,31,.7)"});
+    label(x,lo+0.06,la+0.07,{a:"left",f:"9.5px "+MONO,c:"rgba(51,48,31,.7)"});
   });
 }
 function drawNeatline(){
@@ -547,17 +678,19 @@ function drawNeatline(){
   ctx.lineWidth=1.4; ctx.strokeRect(OX-8,OY-8,W+16,H+16);
   ctx.lineWidth=0.7; ctx.strokeRect(OX-3,OY-3,W+6,H+6);
   ctx.fillStyle="rgba(51,48,31,.75)"; ctx.font="9px "+MONO;
+  const EW=lang==="tr"?"D":(lang==="de"?"O":"E");
+  const NS=lang==="tr"?"K":"N";
   for(let lon=55;lon<=58;lon++){
     const x=PX(lon);
     ctx.beginPath();ctx.moveTo(x,OY-8);ctx.lineTo(x,OY-3);ctx.stroke();
     ctx.beginPath();ctx.moveTo(x,OY+H+3);ctx.lineTo(x,OY+H+8);ctx.stroke();
-    ctx.textAlign="center"; ctx.fillText(lon+"°D",x,OY-12);
+    ctx.textAlign="center"; ctx.fillText(lon+"°"+EW,x,OY-12);
   }
   for(let lat=25;lat<=27;lat++){
     const y=PY(lat);
     ctx.beginPath();ctx.moveTo(OX-8,y);ctx.lineTo(OX-3,y);ctx.stroke();
     ctx.beginPath();ctx.moveTo(OX+W+3,y);ctx.lineTo(OX+W+8,y);ctx.stroke();
-    ctx.textAlign="left"; ctx.fillText(lat+"°K",OX+W+11,y+3);
+    ctx.textAlign="left"; ctx.fillText(lat+"°"+NS,OX+W+11,y+3);
   }
   const nm=H/((LAT1-LAT0)*60), x0=OX+14, y=OY+H-16;
   ctx.strokeStyle="rgba(51,48,31,.85)"; ctx.lineWidth=1;
@@ -569,10 +702,10 @@ function drawCompass(){
   const x=PX(54.86),y=PY(25.55),r=24;
   ctx.save(); ctx.translate(x,y); ctx.strokeStyle="rgba(51,48,31,.5)"; ctx.fillStyle="rgba(51,48,31,.6)";
   ctx.lineWidth=0.8; ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.stroke();
-  for(let a=0;a<360;a+=30){const t=a*Math.PI/180;
-    ctx.beginPath();ctx.moveTo(Math.sin(t)*(r-3),-Math.cos(t)*(r-3));ctx.lineTo(Math.sin(t)*r,-Math.cos(t)*r);ctx.stroke();}
+  for(let a=0;a<360;a+=30){const th=a*Math.PI/180;
+    ctx.beginPath();ctx.moveTo(Math.sin(th)*(r-3),-Math.cos(th)*(r-3));ctx.lineTo(Math.sin(th)*r,-Math.cos(th)*r);ctx.stroke();}
   ctx.beginPath();ctx.moveTo(0,-r+5);ctx.lineTo(3.5,2);ctx.lineTo(-3.5,2);ctx.closePath();ctx.fill();
-  ctx.font="8px "+MONO;ctx.textAlign="center";ctx.fillText("K",0,-r-4);
+  ctx.font="8px "+MONO;ctx.textAlign="center";ctx.fillText(t("map").n,0,-r-4);
   ctx.restore();
 }
 function drawAnchoredSim(){
@@ -676,16 +809,15 @@ function drawFrame(){
 }
 
 /* ---------- saat ---------- */
-const AYLAR=["Oca","Şub","Mar","Nis","May","Haz","Tem","Ağu","Eyl","Eki","Kas","Ara"];
 function updateClock(){
-  if(mode==="sim"){$("clock").textContent="TEMSİLÎ";return;}
+  if(mode==="sim"){$("clock").textContent=t("clock_sim");return;}
   if(mode!=="real"){$("clock").textContent="--:--";return;}
   if(performance.now()<liveHoldUntil || tau>=T1-30){
-    $("clock").textContent="CANLI";
+    $("clock").textContent=t("clock_live");
   }else{
     const d=new Date(tau*1000);
     $("clock").textContent=
-      d.getUTCDate()+" "+AYLAR[d.getUTCMonth()]+" "+
+      d.getUTCDate()+" "+t("months")[d.getUTCMonth()]+" "+
       String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0")+" UTC";
   }
 }
@@ -720,14 +852,38 @@ function loop(ts){
 }
 
 /* ---------- kontroller ---------- */
-$("play").addEventListener("click",()=>{
-  playing=!playing;
-  $("play").textContent=playing?"❚❚ Duraklat":"▶ Oynat";
+function playLabel(){
+  $("play").textContent=playing?("❚❚ "+t("pause")):("▶ "+t("play"));
   $("play").classList.toggle("on",playing);
-});
+}
+$("play").addEventListener("click",()=>{playing=!playing;playLabel();});
 document.querySelectorAll("[data-sp]").forEach(b=>b.addEventListener("click",()=>{
   speed=+b.dataset.sp;
   document.querySelectorAll("[data-sp]").forEach(x=>x.classList.toggle("on",x===b));
+}));
+
+/* ---------- dil uygulama ---------- */
+function applyLang(){
+  document.documentElement.lang=lang;
+  document.querySelectorAll("[data-i]").forEach(el=>{el.textContent=t(el.dataset.i);});
+  $("foot").innerHTML=t("foot");
+  $("credit").innerHTML=t("credit");
+  $("note").textContent=t("note");
+  $("rVLCC").textContent="VLCC · "+t("crude");
+  $("rSUEZ").textContent="Suezmax · "+t("crude");
+  $("rAFRA").textContent="Aframax · "+t("crude");
+  $("rPROD").textContent=t("prod");
+  document.querySelectorAll("#langSeg button").forEach(b=>b.classList.toggle("on",b.dataset.lang===lang));
+  if(!recorder) $("rec").textContent="● "+t("rec");
+  if(!mode) $("modeTxt").textContent=t("loading");
+  playLabel(); applyMode(); renderBanner(); updateClock();
+  if(S) fillPanel();
+  if(OILJ) fillOil();
+}
+document.querySelectorAll("#langSeg button").forEach(b=>b.addEventListener("click",()=>{
+  lang=b.dataset.lang;
+  try{localStorage.setItem("hurmuz_lang",lang);}catch(e){}
+  applyLang();
 }));
 
 /* ---------- kayıt ---------- */
@@ -744,27 +900,29 @@ $("rec").addEventListener("click",()=>{
     recorder.onstop=()=>{
       const blob=new Blob(chunks,{type:"video/webm"});
       const a=document.createElement("a");
-      a.href=URL.createObjectURL(blob); a.download="hurmuz-tanker-trafigi.webm"; a.click();
+      a.href=URL.createObjectURL(blob); a.download="hormuz-tanker-traffic.webm"; a.click();
       setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-      recorder=null; btn.textContent="● Kaydet"; btn.classList.remove("on");
+      recorder=null; btn.textContent="● "+t("rec"); btn.classList.remove("on");
     };
     recorder.start();
-    btn.textContent="■ Durdur & indir"; btn.classList.add("on");
+    btn.textContent="■ "+t("rec_stop"); btn.classList.add("on");
   }catch(err){
-    btn.textContent="Kayıt desteklenmiyor";
-    setTimeout(()=>{btn.textContent="● Kaydet";},2500);
+    btn.textContent=t("rec_no");
+    setTimeout(()=>{btn.textContent="● "+t("rec");},2500);
     recorder=null;
   }
 });
 
 /* ---------- başlat ---------- */
 resize();
+applyLang();
 if(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches){
-  playing=false; $("play").textContent="▶ Oynat"; $("play").classList.remove("on");
+  playing=false; playLabel();
 }
-loadStats(); loadReplay();
+loadStats(); loadReplay(); loadOil();
 setInterval(loadStats, 60000);
 setInterval(loadReplay, 240000);
+setInterval(loadOil, 10*60*1000);
 requestAnimationFrame(loop);
 </script>
 </body>
