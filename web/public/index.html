@@ -8,7 +8,13 @@
 <meta name="description" content="Strait of Hormuz tanker traffic: official daily transit statistics (IMF PortWatch), live Brent price and an animated chart-style map. TR · EN · DE.">
 <meta property="og:title" content="Strait of Hormuz — Tanker Traffic · Hürmüz Boğazı">
 <meta property="og:description" content="Official daily transit statistics (IMF PortWatch) + live Brent + animated traffic map. 24/7 · TR EN DE.">
+<meta property="og:url" content="https://hurmuz-trafik.vercel.app/">
+<meta property="og:image" content="https://hurmuz-trafik.vercel.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Strait of Hormuz tanker traffic — chart-style map and statistics panel">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hurmuz-trafik.vercel.app/og.png">
 <meta name="twitter:site" content="@yuppiepoff">
 <meta name="twitter:creator" content="@yuppiepoff">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23EFE9D6'/%3E%3Cpath d='M5 19h17l5-3.5L22 12H5z' fill='%23B0541C'/%3E%3Cpath d='M3 24h26' stroke='%23B03187' stroke-width='2' stroke-dasharray='4 3'/%3E%3C/svg%3E">
@@ -44,12 +50,10 @@
   .seg button+button{border-left:none}
   .seg.mini button{font-size:9px;padding:5px 8px;letter-spacing:.12em}
   main{flex:1;display:flex;align-items:stretch;min-height:0}
-  #mapwrap{flex:1 1 620px;position:relative;padding:12px;min-width:300px;min-height:380px}
-  #stage{position:relative;width:100%;height:100%;min-height:360px}
+  #mapwrap{flex:1 1 620px;display:flex;flex-direction:column;gap:8px;padding:12px;min-width:300px;min-height:380px}
+  #stage{position:relative;flex:1 1 auto;width:100%;min-height:360px}
   canvas#map{position:absolute;inset:0;width:100%;height:100%;display:block}
-  #simBanner{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);display:none;
-    max-width:min(94%,560px);background:var(--paper);border:1px solid var(--rule);
-    padding:6px 10px;font-size:10.5px;line-height:1.45;color:var(--ink-soft);text-align:center}
+  #simBanner{display:none;background:var(--paper);border:1px solid var(--rule);padding:6px 10px;font-size:10.5px;line-height:1.45;color:var(--ink-soft);text-align:center}
   #simBanner b{color:var(--crude)}
   #empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:24px}
   #empty div{max-width:420px;font-size:13px;line-height:1.6;color:var(--ink-soft);
@@ -79,8 +83,7 @@
   .footnote{font-size:10.5px;line-height:1.55;color:var(--ink-soft)}
   .footnote b{color:var(--ink)}
   .footnote a{color:var(--ink);text-decoration:underline dotted}
-  .credit{font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--ink-soft);
-    border-top:1px solid var(--rule);padding-top:9px;margin-top:2px}
+  .credit{font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--ink-soft);margin-left:auto}
   .credit a{color:var(--ink);text-decoration:underline dotted}
   .ref{border-top:1px dashed var(--ink-faint);margin-top:9px;padding-top:7px;font-family:var(--mono);
     font-size:10px;letter-spacing:.04em;color:var(--ink-soft);display:flex;justify-content:space-between;gap:8px}
@@ -93,9 +96,7 @@
   button:hover{background:#fff8e6}
   button:focus-visible{outline:2px solid var(--magenta);outline-offset:2px}
   button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-  button.rec.on{background:var(--alert);border-color:var(--alert);color:#fff}
-  footer .note{font-size:10.5px;color:var(--ink-soft);margin-left:auto;max-width:320px;line-height:1.4}
-  @media (pointer:coarse){
+    @media (pointer:coarse){
     button{padding:10px 14px}
     .seg.mini button{padding:8px 10px}
   }
@@ -103,7 +104,7 @@
     main{flex-direction:column}
     aside{flex:1 1 auto;border-left:none;border-top:1px solid var(--rule)}
     #mapwrap{min-height:58vh}
-    footer .note{max-width:none;margin-left:0;flex-basis:100%}
+    footer .credit{margin-left:0;flex-basis:100%}
     .mast-left h1{font-size:19px}
   }
 </style>
@@ -129,9 +130,9 @@
   <div id="mapwrap">
     <div id="stage">
       <canvas id="map"></canvas>
-      <div id="simBanner"></div>
       <div id="empty"><div id="emptyMsg">…</div></div>
     </div>
+    <div id="simBanner"></div>
   </div>
 
   <aside>
@@ -183,7 +184,6 @@
     </div>
 
     <div class="footnote" id="foot"></div>
-    <div class="credit" id="credit"></div>
   </aside>
 </main>
 
@@ -194,8 +194,7 @@
       <button data-sp="1" class="on">1×</button><button data-sp="2">2×</button><button data-sp="4">4×</button>
     </span>
   </div>
-  <div class="ctl"><button id="rec" class="rec"></button></div>
-  <div class="note" id="note"></div>
+  <div class="credit" id="credit"></div>
 </footer>
 
 <script>
@@ -222,8 +221,8 @@ blk_hourly:"Saatlik Canlı Sayım",vol_lbl:"Tahmini hacim",vol_unit:"mn varil",h
 speed:"Hız",pause:"Duraklat",play:"Oynat",rec:"Kaydet",rec_stop:"Durdur & indir",rec_no:"Kayıt desteklenmiyor",
 clock_live:"CANLI",clock_sim:"TEMSİLÎ",
 empty_api:"API'ye ulaşılamadı. Site Vercel üzerinde yayındayken bu sayfa /api uçlarından beslenir.",
-foot:'Günlük geçiş serisi: <b>IMF PortWatch</b> (uydu AIS; <a href="https://straits.live" rel="noopener">straits.live</a> aracılığıyla, haftalık güncellenir). Brent/WTI: straits.live. Canlı izler: <a href="https://aisstream.io" rel="noopener">aisstream.io</a>. AIS tabanlı her sayım <b>alt sınırdır</b>: transponderini kapatan veya sahte konum yayınlayan gemiler görünmez.',
-credit:'Bu bir <a href="https://yuppiepoff.com" rel="noopener">yuppiepoff.com</a> projesidir · X: <a href="https://x.com/yuppiepoff" rel="noopener">@yuppiepoff</a>',
+foot:'Günlük geçiş serisi: <b>IMF PortWatch</b> (uydu AIS; <a href="https://straits.live" target="_blank" rel="noopener">straits.live</a> aracılığıyla, haftalık güncellenir). Brent/WTI: straits.live. Canlı izler: <a href="https://aisstream.io" target="_blank" rel="noopener">aisstream.io</a>. AIS tabanlı her sayım <b>alt sınırdır</b>: transponderini kapatan veya sahte konum yayınlayan gemiler görünmez.',
+credit:'Bu bir <a href="https://yuppiepoff.com" target="_blank" rel="noopener">yuppiepoff.com</a> projesidir · X: <a href="https://x.com/yuppiepoff" target="_blank" rel="noopener">@yuppiepoff</a>',
 note:"Sayfa kendiliğinden oynar. ● Kaydet, haritayı WebM video olarak indirir.",
 months:["Oca","Şub","Mar","Nis","May","Haz","Tem","Ağu","Eyl","Eki","Kas","Ara"],
 map:{iran:"İ R A N",uae:"B.A.E.",oman:"UMMAN",gulf:"BASRA KÖRFEZİ",gulf2:"UMMAN KÖRFEZİ",qeshm:"Keşm",bandar:"Bender Abbas",fuj:"Fuceyra",gate:"SAYIM HATTI 56°36′D",n:"K"},num:"tr-TR"},
@@ -243,8 +242,8 @@ blk_hourly:"Hourly Live Count",vol_lbl:"Est. volume",vol_unit:"M bbl",h_ago:"-24
 speed:"Speed",pause:"Pause",play:"Play",rec:"Record",rec_stop:"Stop & download",rec_no:"Recording unsupported",
 clock_live:"LIVE",clock_sim:"MODEL",
 empty_api:"API unreachable. When deployed on Vercel this page is fed by its /api endpoints.",
-foot:'Daily transit series: <b>IMF PortWatch</b> (satellite AIS; via <a href="https://straits.live" rel="noopener">straits.live</a>, updated weekly). Brent/WTI: straits.live. Live tracks: <a href="https://aisstream.io" rel="noopener">aisstream.io</a>. Any AIS-based count is a <b>lower bound</b>: vessels that switch off or spoof their transponders are not visible.',
-credit:'A <a href="https://yuppiepoff.com" rel="noopener">yuppiepoff.com</a> project · X: <a href="https://x.com/yuppiepoff" rel="noopener">@yuppiepoff</a>',
+foot:'Daily transit series: <b>IMF PortWatch</b> (satellite AIS; via <a href="https://straits.live" target="_blank" rel="noopener">straits.live</a>, updated weekly). Brent/WTI: straits.live. Live tracks: <a href="https://aisstream.io" target="_blank" rel="noopener">aisstream.io</a>. Any AIS-based count is a <b>lower bound</b>: vessels that switch off or spoof their transponders are not visible.',
+credit:'A <a href="https://yuppiepoff.com" target="_blank" rel="noopener">yuppiepoff.com</a> project · X: <a href="https://x.com/yuppiepoff" target="_blank" rel="noopener">@yuppiepoff</a>',
 note:"The page plays automatically. ● Record downloads the map as a WebM video.",
 months:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
 map:{iran:"I R A N",uae:"U.A.E.",oman:"OMAN",gulf:"PERSIAN GULF",gulf2:"GULF OF OMAN",qeshm:"Qeshm",bandar:"Bandar Abbas",fuj:"Fujairah",gate:"COUNT LINE 56°36′E",n:"N"},num:"en-US"},
@@ -264,8 +263,8 @@ blk_hourly:"Stündliche Live-Zählung",vol_lbl:"Gesch. Volumen",vol_unit:"Mio. b
 speed:"Tempo",pause:"Pause",play:"Abspielen",rec:"Aufnehmen",rec_stop:"Stopp & Download",rec_no:"Aufnahme nicht unterstützt",
 clock_live:"LIVE",clock_sim:"MODELL",
 empty_api:"API nicht erreichbar. Auf Vercel wird diese Seite von ihren /api-Endpunkten gespeist.",
-foot:'Tägliche Passagen: <b>IMF PortWatch</b> (Satelliten-AIS; über <a href="https://straits.live" rel="noopener">straits.live</a>, wöchentlich aktualisiert). Brent/WTI: straits.live. Live-Spuren: <a href="https://aisstream.io" rel="noopener">aisstream.io</a>. Jede AIS-basierte Zählung ist eine <b>Untergrenze</b>: Schiffe mit abgeschaltetem oder gefälschtem Transponder sind nicht sichtbar.',
-credit:'Ein Projekt von <a href="https://yuppiepoff.com" rel="noopener">yuppiepoff.com</a> · X: <a href="https://x.com/yuppiepoff" rel="noopener">@yuppiepoff</a>',
+foot:'Tägliche Passagen: <b>IMF PortWatch</b> (Satelliten-AIS; über <a href="https://straits.live" target="_blank" rel="noopener">straits.live</a>, wöchentlich aktualisiert). Brent/WTI: straits.live. Live-Spuren: <a href="https://aisstream.io" target="_blank" rel="noopener">aisstream.io</a>. Jede AIS-basierte Zählung ist eine <b>Untergrenze</b>: Schiffe mit abgeschaltetem oder gefälschtem Transponder sind nicht sichtbar.',
+credit:'Ein Projekt von <a href="https://yuppiepoff.com" target="_blank" rel="noopener">yuppiepoff.com</a> · X: <a href="https://x.com/yuppiepoff" target="_blank" rel="noopener">@yuppiepoff</a>',
 note:"Die Seite läuft automatisch. ● Aufnehmen lädt die Karte als WebM-Video herunter.",
 months:["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"],
 map:{iran:"I R A N",uae:"V.A.E.",oman:"OMAN",gulf:"PERSISCHER GOLF",gulf2:"GOLF VON OMAN",qeshm:"Qeschm",bandar:"Bandar Abbas",fuj:"Fudschaira",gate:"ZÄHLLINIE 56°36′O",n:"N"},num:"de-DE"}};
@@ -868,13 +867,11 @@ function applyLang(){
   document.querySelectorAll("[data-i]").forEach(el=>{el.textContent=t(el.dataset.i);});
   $("foot").innerHTML=t("foot");
   $("credit").innerHTML=t("credit");
-  $("note").textContent=t("note");
   $("rVLCC").textContent="VLCC · "+t("crude");
   $("rSUEZ").textContent="Suezmax · "+t("crude");
   $("rAFRA").textContent="Aframax · "+t("crude");
   $("rPROD").textContent=t("prod");
   document.querySelectorAll("#langSeg button").forEach(b=>b.classList.toggle("on",b.dataset.lang===lang));
-  if(!recorder) $("rec").textContent="● "+t("rec");
   if(!mode) $("modeTxt").textContent=t("loading");
   playLabel(); applyMode(); renderBanner(); updateClock();
   if(S) fillPanel();
@@ -885,33 +882,6 @@ document.querySelectorAll("#langSeg button").forEach(b=>b.addEventListener("clic
   try{localStorage.setItem("hurmuz_lang",lang);}catch(e){}
   applyLang();
 }));
-
-/* ---------- kayıt ---------- */
-let recorder=null, chunks=[];
-$("rec").addEventListener("click",()=>{
-  const btn=$("rec");
-  if(recorder){recorder.stop(); return;}
-  try{
-    const stream=cv.captureStream(30);
-    const mime=MediaRecorder.isTypeSupported("video/webm;codecs=vp9")?"video/webm;codecs=vp9":"video/webm";
-    recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6e6});
-    chunks=[];
-    recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-    recorder.onstop=()=>{
-      const blob=new Blob(chunks,{type:"video/webm"});
-      const a=document.createElement("a");
-      a.href=URL.createObjectURL(blob); a.download="hormuz-tanker-traffic.webm"; a.click();
-      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-      recorder=null; btn.textContent="● "+t("rec"); btn.classList.remove("on");
-    };
-    recorder.start();
-    btn.textContent="■ "+t("rec_stop"); btn.classList.add("on");
-  }catch(err){
-    btn.textContent=t("rec_no");
-    setTimeout(()=>{btn.textContent="● "+t("rec");},2500);
-    recorder=null;
-  }
-});
 
 /* ---------- başlat ---------- */
 resize();
