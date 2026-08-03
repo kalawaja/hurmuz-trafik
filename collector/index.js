@@ -222,8 +222,14 @@ async function fetchDaily() {
 
 /* ---- websocket bağlantısı + bekçi ---- */
 let ws = null;
+let connectedAt = 0;                 // bu bağlantının kurulduğu an (ms)
+let regionSilentSince = null;        // bölgeden hiç mesaj alınamayan sürenin başlangıcı (ms)
+const SILENCE_LIMIT = 6 * 3600 * 1000;   // bölge sessizse bu süre sonunda bağlantıyı zorla tazele
+const STALE_LIMIT   = 120000;            // önceden mesaj almışken bu süre sessizlik = kopuk bağlantı
+
 function connect() {
   log("aisstream.io bağlantısı açılıyor…");
+  connectedAt = Date.now();
   ws = new WebSocket("wss://stream.aisstream.io/v0/stream");
   ws.on("open", () => {
     log("Bağlandı; abonelik gönderiliyor.");
@@ -240,10 +246,24 @@ function connect() {
     setTimeout(connect, 5000);
   });
 }
+// Bekçi: ESKİDEN yalnızca "daha önce mesaj almışken sessizleşti" durumunu yakalıyordu.
+// Bölgeden hiç mesaj gelmeyen (lastMsgAt hep 0 kalan) bağlantılar bu yüzden sonsuza dek
+// açık ama sessiz kalabiliyordu. Şimdi iki durumu da ayrı ayrı izliyor ve raporluyor:
 setInterval(() => {
-  if (lastMsgAt && Date.now() - lastMsgAt > 120000) {
-    log("Bekçi: 120 sn'dir mesaj yok, bağlantı yenileniyor.");
+  const now = Date.now();
+  if (lastMsgAt && now - lastMsgAt > STALE_LIMIT) {
+    log("Bekçi: önceki akış", Math.round((now - lastMsgAt) / 1000), "sn'dir sessiz, bağlantı yenileniyor.");
+    regionSilentSince = null;
     try { ws?.terminate(); } catch {}
+    return;
+  }
+  if (!lastMsgAt && connectedAt) {
+    if (!regionSilentSince) regionSilentSince = connectedAt;
+    const silentFor = now - regionSilentSince;
+    if (silentFor > SILENCE_LIMIT) {
+      log("Bekçi: bölgeden", Math.round(silentFor / 3600000), "saattir hiç mesaj yok, sigorta amaçlı bağlantı tazeleniyor.");
+      try { ws?.terminate(); } catch {}
+    }
   }
 }, 30000);
 
@@ -278,7 +298,9 @@ http.createServer((req, res) => {
     mesaj: msgCount, yazilanKonum: posWritten, gecis: transitCount,
     izlenenGemi: lastPos.size,
     bilinenTanker: [...meta.values()].filter(m => isTanker(m.type)).length,
-    gunlukSeriGun: dailyRows, gunlukSonTarih: dailyLast
+    gunlukSeriGun: dailyRows, gunlukSonTarih: dailyLast,
+    bolgeSessizSaat: (!lastMsgAt && regionSilentSince)
+      ? +((Date.now() - regionSilentSince) / 3600000).toFixed(1) : 0
   });
   res.writeHead(200, { "Content-Type": "application/json" });
   res.end(body);
